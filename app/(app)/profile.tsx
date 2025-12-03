@@ -1,43 +1,99 @@
 // app/(app)/profile.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../stores/authStore';
+import { useBooksStore } from '../../stores/booksStore';
+import { useReviewsStore } from '../../stores/reviewsStore';
 
-const HIGHLIGHTS = [
-    {
-        id: 'h1',
-        type: 'review',
-        book: 'Clean Code',
-        snippet: 'Um clássico indispensável para qualquer dev...',
-    },
-    {
-        id: 'h2',
-        type: 'quote',
-        book: 'Deep Work',
-        snippet: '"Trabalho profundo é como um superpoder..."',
-    },
-    {
-        id: 'h3',
-        type: 'review',
-        book: 'Atomic Habits',
-        snippet: 'Pequenos ajustes que se acumulam ao longo do tempo.',
-    },
-];
+const READING_GOAL = 12; // meta de livros/ano (mock)
+
+function ReadingChallengeRing({ progress }: { progress: number }) {
+    const size = 120;
+    const strokeWidth = 10;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const clamped = Math.max(0, Math.min(progress, 1));
+    const offset = circumference - circumference * clamped;
+
+    return (
+        <Svg width={size} height={size}>
+            <Circle
+                stroke="#E5E7EB"
+                fill="transparent"
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                strokeWidth={strokeWidth}
+            />
+            <Circle
+                stroke="#5D5FEF"
+                fill="transparent"
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                strokeWidth={strokeWidth}
+                strokeDasharray={`${circumference} ${circumference}`}
+                strokeDashoffset={offset}
+                strokeLinecap="round"
+            />
+        </Svg>
+    );
+}
 
 export default function ProfileScreen() {
-    const { theme, toggleTheme, isDark } = useTheme();
-    const { user, signOut, isLoading } = useAuthStore();
+    const { theme } = useTheme();
     const router = useRouter();
+
+    const books = useBooksStore((s) => s.books);
+    const reviews = useReviewsStore((s) => s.reviews);
+
+    const stats = useMemo(() => {
+        const reading = books.filter((b) => b.status === 'reading');
+        const want = books.filter((b) => b.status === 'want');
+        const read = books.filter((b) => b.status === 'read');
+
+        const pagesRead = books.reduce((sum, b) => {
+            const pages = b.pages || 0;
+            const current = Math.min(b.currentPage || 0, pages);
+            return sum + current;
+        }, 0);
+
+        const totalReviews = reviews.length;
+
+        return {
+            readingCount: reading.length,
+            wantCount: want.length,
+            readCount: read.length,
+            pagesRead,
+            totalReviews,
+        };
+    }, [books, reviews]);
+
+    const challengeProgress = useMemo(() => {
+        if (READING_GOAL <= 0) return 0;
+        return Math.min(stats.readCount / READING_GOAL, 1);
+    }, [stats.readCount]);
+
+    const highlights = useMemo(
+        () => reviews.slice(0, 6),
+        [reviews]
+    );
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
             <ScrollView
-                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
+                contentContainerStyle={{
+                    paddingHorizontal: 16,
+                    paddingTop: 16,
+                    paddingBottom: 32,
+                }}
+                showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
+                {/* Cabeçalho */}
                 <View
                     style={{
                         flexDirection: 'row',
@@ -47,28 +103,21 @@ export default function ProfileScreen() {
                 >
                     <View
                         style={{
-                            width: 56,
-                            height: 56,
+                            width: 48,
+                            height: 48,
                             borderRadius: 999,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginRight: 12,
                             backgroundColor: theme.colors.card,
-                            borderWidth: 1,
-                            borderColor: theme.colors.border,
+                            marginRight: 12,
                         }}
                     >
-                        <Text
-                            style={{
-                                fontSize: 24,
-                                fontWeight: '700',
-                                color: theme.colors.primary,
-                            }}
-                        >
-                            {user?.name?.[0] ?? 'L'}
-                        </Text>
+                        <Ionicons
+                            name="person-outline"
+                            size={24}
+                            color={theme.colors.text}
+                        />
                     </View>
-
                     <View style={{ flex: 1 }}>
                         <Text
                             style={{
@@ -77,7 +126,7 @@ export default function ProfileScreen() {
                                 color: theme.colors.text,
                             }}
                         >
-                            {user?.name ?? 'Leitor Lumina'}
+                            Você
                         </Text>
                         <Text
                             style={{
@@ -85,15 +134,14 @@ export default function ProfileScreen() {
                                 color: theme.colors.muted,
                             }}
                         >
-                            {user?.email ?? 'demo@lumina.app'}
+                            Leitor do Lumina
                         </Text>
                     </View>
-
                     <TouchableOpacity
-                        onPress={toggleTheme}
+                        onPress={() => router.push('/(app)/settings')}
                         style={{
-                            width: 36,
-                            height: 36,
+                            width: 32,
+                            height: 32,
                             borderRadius: 999,
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -102,220 +150,253 @@ export default function ProfileScreen() {
                             borderColor: theme.colors.border,
                         }}
                     >
-                        <Ionicons
-                            name={isDark ? 'sunny-outline' : 'moon-outline'}
-                            size={18}
-                            color={theme.colors.text}
-                        />
+                        <Ionicons name="settings-outline" size={18} color={theme.colors.text} />
                     </TouchableOpacity>
+                </View>
+
+                {/* Reading challenge */}
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        padding: 16,
+                        borderRadius: 20,
+                        backgroundColor: theme.colors.card,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        marginBottom: 20,
+                    }}
+                >
+                    <View style={{ marginRight: 16 }}>
+                        <ReadingChallengeRing progress={challengeProgress} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text
+                            style={{
+                                fontSize: 14,
+                                fontWeight: '700',
+                                color: theme.colors.text,
+                                marginBottom: 4,
+                            }}
+                        >
+                            Desafio de leitura
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 13,
+                                color: theme.colors.muted,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Meta de {READING_GOAL} livros. Você já concluiu{' '}
+                            <Text
+                                style={{ fontWeight: '700', color: theme.colors.text }}
+                            >
+                                {stats.readCount}
+                            </Text>
+                            .
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 12,
+                                color: theme.colors.muted,
+                            }}
+                        >
+                            Páginas lidas (estimado):{' '}
+                            <Text style={{ fontWeight: '700', color: theme.colors.text }}>
+                                {stats.pagesRead}
+                            </Text>
+                        </Text>
+                    </View>
                 </View>
 
                 {/* Stats */}
                 <View
                     style={{
                         flexDirection: 'row',
-                        padding: 16,
-                        borderRadius: 20,
                         marginBottom: 20,
-                        backgroundColor: theme.colors.card,
+                        gap: 10,
                     }}
                 >
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text
-                            style={{
-                                fontSize: 20,
-                                fontWeight: '800',
-                                color: theme.colors.text,
-                            }}
-                        >
-                            24
-                        </Text>
-                        <Text
-                            style={{
-                                fontSize: 12,
-                                color: theme.colors.muted,
-                            }}
-                        >
-                            livros lidos
-                        </Text>
-                    </View>
-
                     <View
                         style={{
-                            width: 1,
-                            backgroundColor: theme.colors.border,
+                            flex: 1,
+                            padding: 12,
+                            borderRadius: 16,
+                            backgroundColor: theme.colors.card,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
                         }}
-                    />
-
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text
-                            style={{
-                                fontSize: 20,
-                                fontWeight: '800',
-                                color: theme.colors.text,
-                            }}
-                        >
-                            6
-                        </Text>
+                    >
                         <Text
                             style={{
                                 fontSize: 12,
                                 color: theme.colors.muted,
+                                marginBottom: 4,
                             }}
                         >
-                            em andamento
+                            Lendo agora
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 18,
+                                fontWeight: '800',
+                                color: theme.colors.text,
+                            }}
+                        >
+                            {stats.readingCount}
                         </Text>
                     </View>
-
                     <View
                         style={{
-                            width: 1,
-                            backgroundColor: theme.colors.border,
+                            flex: 1,
+                            padding: 12,
+                            borderRadius: 16,
+                            backgroundColor: theme.colors.card,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
                         }}
-                    />
-
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text
-                            style={{
-                                fontSize: 20,
-                                fontWeight: '800',
-                                color: theme.colors.text,
-                            }}
-                        >
-                            18
-                        </Text>
+                    >
                         <Text
                             style={{
                                 fontSize: 12,
                                 color: theme.colors.muted,
+                                marginBottom: 4,
                             }}
                         >
-                            avaliações
+                            Quero ler
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 18,
+                                fontWeight: '800',
+                                color: theme.colors.text,
+                            }}
+                        >
+                            {stats.wantCount}
+                        </Text>
+                    </View>
+                    <View
+                        style={{
+                            flex: 1,
+                            padding: 12,
+                            borderRadius: 16,
+                            backgroundColor: theme.colors.card,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                fontSize: 12,
+                                color: theme.colors.muted,
+                                marginBottom: 4,
+                            }}
+                        >
+                            Lidos
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 18,
+                                fontWeight: '800',
+                                color: theme.colors.text,
+                            }}
+                        >
+                            {stats.readCount}
                         </Text>
                     </View>
                 </View>
 
-                {/* Link para configurações */}
-                <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => router.push('/(app)/settings')}
-                    style={{
-                        marginBottom: 20,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 16,
-                        backgroundColor: theme.colors.card,
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                    }}
-                >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <Ionicons
-                            name="settings-outline"
-                            size={20}
-                            color={theme.colors.text}
-                        />
-                        <View>
+                {/* Destaques (reviews) */}
+                <View>
+                    <Text
+                        style={{
+                            fontSize: 16,
+                            fontWeight: '700',
+                            color: theme.colors.text,
+                            marginBottom: 10,
+                        }}
+                    >
+                        Seus destaques
+                    </Text>
+
+                    {highlights.length === 0 ? (
+                        <View
+                            style={{
+                                padding: 16,
+                                borderRadius: 16,
+                                backgroundColor: theme.colors.card,
+                                borderWidth: 1,
+                                borderColor: theme.colors.border,
+                            }}
+                        >
                             <Text
                                 style={{
                                     fontSize: 14,
                                     fontWeight: '600',
                                     color: theme.colors.text,
+                                    marginBottom: 4,
                                 }}
                             >
-                                Configurações
+                                Nada por aqui ainda
                             </Text>
                             <Text
                                 style={{
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     color: theme.colors.muted,
                                 }}
                             >
-                                Notificações, aparência e muito mais.
+                                Publique suas primeiras reviews para vê-las em destaque no seu
+                                perfil.
                             </Text>
                         </View>
-                    </View>
-                    <Ionicons
-                        name="chevron-forward"
-                        size={18}
-                        color={theme.colors.muted}
-                    />
-                </TouchableOpacity>
-
-                {/* Highlights (masonry simples em 2 colunas) */}
-                <View style={{ marginBottom: 24 }}>
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                            marginBottom: 10,
-                        }}
-                    >
-                        <Text
+                    ) : (
+                        <View
                             style={{
-                                fontSize: 16,
-                                fontWeight: '700',
-                                color: theme.colors.text,
+                                flexDirection: 'row',
+                                flexWrap: 'wrap',
+                                gap: 10,
                             }}
                         >
-                            Destaques recentes
-                        </Text>
-
-                        <TouchableOpacity>
-                            <Text
-                                style={{
-                                    fontSize: 12,
-                                    fontWeight: '600',
-                                    color: theme.colors.primary,
-                                }}
-                            >
-                                Ver todos
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            gap: 10,
-                        }}
-                    >
-                        {/* Coluna 1 */}
-                        <View style={{ flex: 1, gap: 10 }}>
-                            {HIGHLIGHTS.filter((_, idx) => idx % 2 === 0).map((item) => (
+                            {highlights.map((review) => (
                                 <TouchableOpacity
-                                    key={item.id}
-                                    activeOpacity={0.85}
+                                    key={review.id}
+                                    activeOpacity={0.9}
+                                    onPress={() =>
+                                        router.push({
+                                            pathname: '/review/comments',
+                                            params: { id: review.bookId, reviewId: review.id },
+                                        })
+                                    }
                                     style={{
-                                        padding: 12,
-                                        borderRadius: 16,
+                                        width: '48%',
+                                        padding: 10,
+                                        borderRadius: 14,
                                         backgroundColor: theme.colors.card,
-                                        borderColor: theme.colors.border,
                                         borderWidth: 1,
+                                        borderColor: theme.colors.border,
                                     }}
                                 >
                                     <Text
                                         style={{
                                             fontSize: 11,
-                                            fontWeight: '600',
                                             color: theme.colors.muted,
                                             marginBottom: 4,
                                         }}
+                                        numberOfLines={1}
                                     >
-                                        {item.type === 'review' ? 'Avaliação' : 'Citação'}
+                                        ⭐ {review.rating.toFixed(1)} • {review.bookId}
                                     </Text>
                                     <Text
                                         style={{
                                             fontSize: 13,
                                             fontWeight: '700',
                                             color: theme.colors.text,
-                                            marginBottom: 4,
+                                            marginBottom: 2,
                                         }}
+                                        numberOfLines={2}
                                     >
-                                        {item.book}
+                                        {review.title || 'Review sem título'}
                                     </Text>
                                     <Text
                                         style={{
@@ -324,89 +405,13 @@ export default function ProfileScreen() {
                                         }}
                                         numberOfLines={3}
                                     >
-                                        {item.snippet}
+                                        {review.body}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
-
-                        {/* Coluna 2 */}
-                        <View style={{ flex: 1, gap: 10 }}>
-                            {HIGHLIGHTS.filter((_, idx) => idx % 2 === 1).map((item) => (
-                                <TouchableOpacity
-                                    key={item.id}
-                                    activeOpacity={0.85}
-                                    style={{
-                                        padding: 12,
-                                        borderRadius: 16,
-                                        backgroundColor: theme.colors.card,
-                                        borderColor: theme.colors.border,
-                                        borderWidth: 1,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            fontSize: 11,
-                                            fontWeight: '600',
-                                            color: theme.colors.muted,
-                                            marginBottom: 4,
-                                        }}
-                                    >
-                                        {item.type === 'review' ? 'Avaliação' : 'Citação'}
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: '700',
-                                            color: theme.colors.text,
-                                            marginBottom: 4,
-                                        }}
-                                    >
-                                        {item.book}
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            fontSize: 12,
-                                            color: theme.colors.muted,
-                                        }}
-                                        numberOfLines={3}
-                                    >
-                                        {item.snippet}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
+                    )}
                 </View>
-
-                {/* Logout (mock) */}
-                <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => signOut()}
-                    style={{
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        borderRadius: 999,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: theme.colors.card,
-                        borderColor: theme.colors.border,
-                        borderWidth: 1,
-                        flexDirection: 'row',
-                        gap: 8,
-                    }}
-                >
-                    <Ionicons name="log-out-outline" size={18} color={theme.colors.danger} />
-                    <Text
-                        style={{
-                            fontSize: 14,
-                            fontWeight: '600',
-                            color: theme.colors.danger,
-                        }}
-                    >
-                        {isLoading ? 'Saindo...' : 'Sair'}
-                    </Text>
-                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );

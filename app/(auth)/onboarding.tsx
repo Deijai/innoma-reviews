@@ -1,75 +1,147 @@
 // app/(auth)/onboarding.tsx
-import { Link, useRouter } from 'expo-router';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
+import {
+    Animated,
+    Text,
+    TouchableOpacity
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 
 export default function OnboardingScreen() {
-    const router = useRouter();
     const { theme } = useTheme();
+    const router = useRouter();
+
+    // animação de "flutuar"
+    const float = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(float, {
+                    toValue: 1,
+                    duration: 2500,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(float, {
+                    toValue: 0,
+                    duration: 2500,
+                    useNativeDriver: true,
+                }),
+            ]),
+        ).start();
+    }, [float]);
+
+    const floatingStyle = {
+        transform: [
+            {
+                translateY: float.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -10], // sobe um pouco
+                }),
+            },
+        ],
+    };
 
     return (
-        <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }}>
-            <View className="flex-1 px-6 justify-between pb-8">
-                <View className="mt-6">
-                    <Text
-                        className="text-xs font-semibold tracking-[3px]"
-                        style={{ color: theme.colors.muted }}
-                    >
-                        BEM-VINDO(A) AO LUMINA
-                    </Text>
+        <SafeAreaView
+            style={{
+                flex: 1,
+                backgroundColor: theme.colors.background,
+                paddingHorizontal: 24,
+                justifyContent: 'center',
+                alignItems: 'center',
+            }}
+        >
+            {/* “Ilustração” fake só pra ter algo visual e animado */}
+            <Animated.View
+                style={[
+                    {
+                        width: 220,
+                        height: 220,
+                        borderRadius: 999,
+                        backgroundColor: theme.colors.primarySoft,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginBottom: 40,
+                    },
+                    floatingStyle,
+                ]}
+            >
+                <Text
+                    style={{
+                        fontSize: 48,
+                        color: theme.colors.primary,
+                    }}
+                >
+                    📚
+                </Text>
+            </Animated.View>
 
-                    <Text
-                        className="mt-3 text-3xl font-extrabold"
-                        style={{ color: theme.colors.text }}
-                    >
-                        Descubra, avalie e compartilhe seus livros favoritos.
-                    </Text>
+            {/* Título */}
+            <Text
+                style={{
+                    fontSize: 28,
+                    fontWeight: '800',
+                    color: theme.colors.text,
+                    textAlign: 'center',
+                    marginBottom: 12,
+                }}
+            >
+                Bem-vindo ao Lumina
+            </Text>
 
-                    <Text
-                        className="mt-4 text-base"
-                        style={{ color: theme.colors.muted }}
-                    >
-                        Crie sua biblioteca, acompanhe seu progresso de leitura
-                        e conecte-se com outros leitores.
-                    </Text>
-                </View>
+            {/* Subtítulo */}
+            <Text
+                style={{
+                    fontSize: 15,
+                    color: theme.colors.muted,
+                    textAlign: 'center',
+                    lineHeight: 22,
+                    marginBottom: 28,
+                }}
+            >
+                Descubra novos livros, acompanhe sua leitura, escreva reviews
+                e conecte-se com outros leitores apaixonados.
+            </Text>
 
-                {/* Ilustração mockada – depois podemos trocar por SVG/Lottie */}
-                <View className="items-center">
-                    <View
-                        className="w-56 h-56 rounded-3xl justify-center items-center"
-                        style={{ backgroundColor: theme.colors.card }}
-                    >
-                        <Text className="text-6xl" style={{ color: theme.colors.primary }}>
-                            📚
-                        </Text>
-                    </View>
-                </View>
+            {/* Botão principal */}
+            <TouchableOpacity
+                onPress={() => router.push('/(auth)/sign-in')}
+                style={{
+                    width: '100%',
+                    backgroundColor: theme.colors.primary,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 12,
+                }}
+            >
+                <Text
+                    style={{
+                        fontSize: 16,
+                        fontWeight: '700',
+                        color: '#FFFFFF',
+                    }}
+                >
+                    Começar
+                </Text>
+            </TouchableOpacity>
 
-                <View>
-                    <TouchableOpacity
-                        activeOpacity={0.9}
-                        className="w-full py-4 rounded-2xl items-center"
-                        style={{ backgroundColor: theme.colors.primary }}
-                        onPress={() => router.push('/(auth)/sign-in')}
-                    >
-                        <Text className="text-base font-semibold text-white">
-                            Começar
-                        </Text>
-                    </TouchableOpacity>
-
-                    <View className="mt-4 flex-row justify-center">
-                        <Text style={{ color: theme.colors.muted }}>Já tem conta? </Text>
-                        <Link
-                            href="/(auth)/sign-in"
-                            style={{ color: theme.colors.primary, fontWeight: '600' }}
-                        >
-                            Entrar
-                        </Link>
-                    </View>
-                </View>
-            </View>
+            {/* Link para login */}
+            <TouchableOpacity onPress={() => router.push('/(auth)/sign-in')}>
+                <Text
+                    style={{
+                        fontSize: 14,
+                        fontWeight: '600',
+                        color: theme.colors.primary,
+                    }}
+                >
+                    Já tenho uma conta
+                </Text>
+            </TouchableOpacity>
         </SafeAreaView>
     );
 }

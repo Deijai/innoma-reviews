@@ -1,12 +1,13 @@
 // app/(app)/_layout.tsx
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const { theme } = useTheme();
+    const router = useRouter();
 
     return (
         <View
@@ -25,7 +26,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 const { options } = descriptors[route.key];
 
                 // 🔴 Lista de rotas que não devem aparecer na TabBar
-                const hiddenRoutes = ['settings', 'search', 'log-reading'];
+                const hiddenRoutes = ['settings', 'search', 'log-reading', 'scan-barcode'];
                 if (hiddenRoutes.includes(route.name)) {
                     return null;
                 }
@@ -71,23 +72,25 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                         >
                             <TouchableOpacity
                                 activeOpacity={0.9}
-                                onPress={onPress}
+                                onPress={() => router.push('/(app)/scan-barcode')}
                                 style={{
-                                    width: 64,
-                                    height: 64,
+                                    position: 'absolute',
+                                    right: 16,
+                                    bottom: 24,
+                                    width: 56,
+                                    height: 56,
                                     borderRadius: 999,
-                                    marginTop: -24,
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     backgroundColor: theme.colors.primary,
                                     shadowColor: '#000',
-                                    shadowOpacity: 0.16,
-                                    shadowRadius: 8,
-                                    shadowOffset: { width: 0, height: 4 },
-                                    elevation: 6,
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 6,
+                                    shadowOffset: { width: 0, height: 3 },
+                                    elevation: 5,
                                 }}
                             >
-                                <Ionicons name="add" size={28} color="#FFFFFF" />
+                                <Ionicons name="barcode-outline" size={24} color="#FFFFFF" />
                             </TouchableOpacity>
                         </View>
                     );
@@ -176,6 +179,13 @@ export default function AppTabsLayout() {
 
             <Tabs.Screen
                 name="log-reading"
+                options={{
+                    href: null,
+                }}
+            />
+
+            <Tabs.Screen
+                name="scan-barcode"
                 options={{
                     href: null,
                 }}

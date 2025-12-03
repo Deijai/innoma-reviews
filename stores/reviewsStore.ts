@@ -22,6 +22,7 @@ export type Comment = {
     userName: string;
     text: string;
     createdAt: number;
+    parentCommentId?: string | null; // 👈 suporte a respostas
 };
 
 type ReviewsState = {
@@ -39,6 +40,7 @@ type ReviewsState = {
         bookId: string;
         userName: string;
         text: string;
+        parentCommentId?: string | null;
     }) => void;
     resetReviews: () => void;
 };
@@ -71,7 +73,13 @@ export const useReviewsStore = create<ReviewsState>()(
                 return id;
             },
 
-            addComment: ({ reviewId, bookId, userName, text }) => {
+            addComment: ({
+                reviewId,
+                bookId,
+                userName,
+                text,
+                parentCommentId = null,
+            }) => {
                 const id = String(Date.now());
                 const createdAt = Date.now();
 
@@ -82,6 +90,7 @@ export const useReviewsStore = create<ReviewsState>()(
                     userName,
                     text: text.trim(),
                     createdAt,
+                    parentCommentId,
                 };
 
                 set((state) => ({

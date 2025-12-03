@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
-import { useReviewsStore } from '../../stores/reviewsStore';
+import { useReviewsStore, type Comment as CommentType } from '../../stores/reviewsStore';
 
 export default function CommentsScreen() {
     const { theme } = useTheme();
@@ -24,6 +24,7 @@ export default function CommentsScreen() {
     }>();
 
     const [text, setText] = useState('');
+    const [replyTo, setReplyTo] = useState<CommentType | null>(null);
 
     const reviews = useReviewsStore((s) => s.reviews);
     const addComment = useReviewsStore((s) => s.addComment);
@@ -40,6 +41,20 @@ export default function CommentsScreen() {
 
     const comments = review?.comments ?? [];
 
+    const topLevelComments = comments.filter((c) => !c.parentCommentId);
+    const childrenByParent = useMemo(() => {
+        const map = new Map<string, CommentType[]>();
+        comments.forEach((c) => {
+            if (c.parentCommentId) {
+                if (!map.has(c.parentCommentId)) {
+                    map.set(c.parentCommentId, []);
+                }
+                map.get(c.parentCommentId)!.push(c);
+            }
+        });
+        return map;
+    }, [comments]);
+
     function handleBack() {
         router.back();
     }
@@ -53,9 +68,101 @@ export default function CommentsScreen() {
             bookId: id.toString(),
             userName: 'Você',
             text,
+            parentCommentId: replyTo?.id ?? null,
         });
 
         setText('');
+        setReplyTo(null);
+    }
+
+    function renderCommentItem(item: CommentType, depth: number = 0) {
+        const children = childrenByParent.get(item.id) ?? [];
+        const isReply = depth > 0;
+
+        return (
+            <View key={item.id} style={{ marginBottom: 8 }}>
+                <View
+                    style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 16,
+                        backgroundColor: isReply
+                            ? theme.colors.background
+                            : theme.colors.card,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        marginLeft: isReply ? 32 : 0,
+                    }}
+                >
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginBottom: 2,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                fontSize: 13,
+                                fontWeight: '700',
+                                color: theme.colors.text,
+                            }}
+                        >
+                            {item.userName}
+                        </Text>
+                        <Text
+                            style={{
+                                marginLeft: 6,
+                                fontSize: 11,
+                                color: theme.colors.muted,
+                            }}
+                        >
+                            {/* Por enquanto, só data simplificada */}
+                            {new Date(item.createdAt).toLocaleDateString()}
+                        </Text>
+                    </View>
+
+                    <Text
+                        style={{
+                            fontSize: 13,
+                            color: theme.colors.muted,
+                            marginBottom: 6,
+                        }}
+                    >
+                        {item.text}
+                    </Text>
+
+                    {!isReply && (
+                        <TouchableOpacity
+                            onPress={() => setReplyTo(item)}
+                            style={{ flexDirection: 'row', alignItems: 'center' }}
+                        >
+                            <Ionicons
+                                name="chatbubble-ellipses-outline"
+                                size={14}
+                                color={theme.colors.primary}
+                                style={{ marginRight: 4 }}
+                            />
+                            <Text
+                                style={{
+                                    fontSize: 12,
+                                    fontWeight: '600',
+                                    color: theme.colors.primary,
+                                }}
+                            >
+                                Responder
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {children.length > 0 && (
+                    <View style={{ marginTop: 4 }}>
+                        {children.map((child) => renderCommentItem(child, depth + 1))}
+                    </View>
+                )}
+            </View>
+        );
     }
 
     return (
@@ -114,8 +221,8 @@ export default function CommentsScreen() {
                     </View>
                 </View>
 
-                {/* Lista de comentários ou empty-state */}
-                {(!review || comments.length === 0) ? (
+                {/* Lista */}
+                {(!review || topLevelComments.length === 0) ? (
                     <View
                         style={{
                             flex: 1,
@@ -146,51 +253,18 @@ export default function CommentsScreen() {
                     </View>
                 ) : (
                     <FlatList
-                        data={comments}
+                        data={topLevelComments}
                         keyExtractor={(item) => item.id}
                         contentContainerStyle={{
                             paddingHorizontal: 16,
                             paddingBottom: 80,
                             paddingTop: 8,
                         }}
-                        inverted
-                        renderItem={({ item }) => (
-                            <View
-                                style={{
-                                    paddingVertical: 10,
-                                    paddingHorizontal: 12,
-                                    borderRadius: 16,
-                                    marginBottom: 8,
-                                    backgroundColor: theme.colors.card,
-                                    borderWidth: 1,
-                                    borderColor: theme.colors.border,
-                                }}
-                            >
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: '700',
-                                        color: theme.colors.text,
-                                        marginBottom: 2,
-                                    }}
-                                >
-                                    {item.userName}
-                                </Text>
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        color: theme.colors.muted,
-                                        marginBottom: 4,
-                                    }}
-                                >
-                                    {item.text}
-                                </Text>
-                            </View>
-                        )}
+                        renderItem={({ item }) => renderCommentItem(item, 0)}
                     />
                 )}
 
-                {/* Input fixo embaixo */}
+                {/* Input fixo + contexto de resposta */}
                 <View
                     style={{
                         position: 'absolute',
@@ -204,6 +278,41 @@ export default function CommentsScreen() {
                         backgroundColor: theme.colors.card,
                     }}
                 >
+                    {replyTo && (
+                        <View
+                            style={{
+                                marginBottom: 6,
+                                paddingHorizontal: 10,
+                                paddingVertical: 6,
+                                borderRadius: 999,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: theme.colors.background,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 12,
+                                    color: theme.colors.muted,
+                                    flex: 1,
+                                }}
+                                numberOfLines={1}
+                            >
+                                Respondendo a{' '}
+                                <Text style={{ fontWeight: '600', color: theme.colors.text }}>
+                                    {replyTo.userName}
+                                </Text>
+                            </Text>
+                            <TouchableOpacity onPress={() => setReplyTo(null)}>
+                                <Ionicons
+                                    name="close-circle"
+                                    size={18}
+                                    color={theme.colors.muted}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                     <View
                         style={{
                             flexDirection: 'row',
@@ -219,7 +328,9 @@ export default function CommentsScreen() {
                         <TextInput
                             value={text}
                             onChangeText={setText}
-                            placeholder="Adicionar comentário..."
+                            placeholder={
+                                replyTo ? 'Responder comentário...' : 'Adicionar comentário...'
+                            }
                             placeholderTextColor={theme.colors.muted}
                             style={{
                                 flex: 1,
@@ -227,7 +338,10 @@ export default function CommentsScreen() {
                                 color: theme.colors.text,
                             }}
                         />
-                        <TouchableOpacity onPress={handleSend} disabled={!text.trim() || !review}>
+                        <TouchableOpacity
+                            onPress={handleSend}
+                            disabled={!text.trim() || !review}
+                        >
                             <Ionicons
                                 name="arrow-up-circle"
                                 size={26}
