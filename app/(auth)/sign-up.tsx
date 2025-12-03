@@ -1,6 +1,7 @@
 // app/(auth)/sign-up.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import React, { useState } from 'react';
 import {
     KeyboardAvoidingView,
@@ -14,10 +15,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { useTheme } from '../../hooks/useTheme';
+import { auth } from '../../services/firebaseConfig';
+import { useAuthStore } from '../../stores/authStore';
+
+
 
 export default function SignUpScreen() {
     const { theme } = useTheme();
     const router = useRouter();
+    const { setUser } = useAuthStore();
+
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -32,20 +39,45 @@ export default function SignUpScreen() {
         password === confirm;
 
     async function handleSignUp() {
-        if (!canSubmit) return;
+        if (!canSubmit || loading) return;
 
-        setLoading(true);
+        try {
+            setLoading(true);
 
-        // 👉 FASE MOCK:
-        // Aqui, na fase Firebase, vamos de fato criar o usuário.
-        // Por enquanto, só voltamos para o login com o e-mail preenchido.
-        setLoading(false);
+            // 1) Cria o usuário no Firebase Auth
+            const cred = await createUserWithEmailAndPassword(
+                auth,
+                email.trim(),
+                password,
+            );
 
-        router.replace({
-            pathname: '/(auth)/sign-in',
-            params: { emailPrefill: email },
-        });
+            // 2) Atualiza o displayName no Firebase
+            await updateProfile(cred.user, {
+                displayName: name.trim(),
+            });
+
+            // 3) Atualiza o store com o usuário logado
+            const appUser = {
+                id: cred.user.uid,
+                displayName: name.trim(),
+                email: cred.user.email || email.trim(),
+                photoURL: cred.user.photoURL,
+            };
+            setUser(appUser);
+
+            // 4) Já joga o usuário para dentro do app
+            router.replace('/(app)/home');
+        } catch (error: any) {
+            console.log('Erro ao criar conta:', error);
+            alert(
+                error?.message ??
+                'Não foi possível criar sua conta. Tente novamente mais tarde.',
+            );
+        } finally {
+            setLoading(false);
+        }
     }
+
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>

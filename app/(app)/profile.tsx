@@ -2,10 +2,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import {
+    Alert,
+    Image,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../hooks/useTheme';
+
+import * as ImagePicker from 'expo-image-picker';
+
+import {
+    getOrCreateUserProfile,
+    uploadProfilePhotoAsync
+} from '../../services/userProfileService';
+import { useAuthStore } from '../../stores/authStore';
+
 
 import { fetchAllBooks } from '../../services/booksService';
 import { fetchAllReviews } from '../../services/reviewsService';
@@ -51,6 +67,17 @@ export default function ProfileScreen() {
     const { theme } = useTheme();
     const router = useRouter();
 
+    const { user } = useAuthStore();
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+    // Garantir que o documento do perfil exista (opcional, mas legal fazer aqui)
+    useEffect(() => {
+        getOrCreateUserProfile().catch((err) => {
+            console.log('Erro ao garantir perfil no Firestore:', err);
+        });
+    }, []);
+
+
     const [books, setBooks] = useState<Book[]>([]);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
@@ -77,6 +104,58 @@ export default function ProfileScreen() {
             isMounted = false;
         };
     }, []);
+
+
+    async function handleChangeAvatar() {
+        if (!user) {
+            Alert.alert(
+                'Você não está logado',
+                'Faça login para alterar sua foto de perfil.',
+            );
+            return;
+        }
+
+        try {
+            // Permissão
+            const { status } =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            if (status !== 'granted') {
+                Alert.alert(
+                    'Permissão necessária',
+                    'Precisamos de acesso à sua galeria para você escolher uma foto.',
+                );
+                return;
+            }
+
+            // Abre a galeria
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+            });
+
+            if (result.canceled) return;
+
+            const uri = result.assets[0].uri;
+            setUploadingPhoto(true);
+
+            await uploadProfilePhotoAsync(uri);
+
+            // O userProfileService já atualiza o authStore,
+            // então o avatar deve atualizar automaticamente.
+        } catch (error) {
+            console.log('Erro ao atualizar foto de perfil:', error);
+            Alert.alert(
+                'Erro',
+                'Não foi possível atualizar sua foto de perfil. Tente novamente.',
+            );
+        } finally {
+            setUploadingPhoto(false);
+        }
+    }
+
 
     const stats = useMemo(() => {
         const reading = books.filter((b) => b.status === 'reading');
@@ -128,7 +207,9 @@ export default function ProfileScreen() {
                         marginBottom: 20,
                     }}
                 >
-                    <View
+                    <TouchableOpacity
+                        onPress={handleChangeAvatar}
+                        disabled={!user || uploadingPhoto}
                         style={{
                             width: 48,
                             height: 48,
@@ -137,14 +218,25 @@ export default function ProfileScreen() {
                             justifyContent: 'center',
                             backgroundColor: theme.colors.card,
                             marginRight: 12,
+                            overflow: 'hidden',
                         }}
+                        activeOpacity={0.7}
                     >
-                        <Ionicons
-                            name="person-outline"
-                            size={24}
-                            color={theme.colors.text}
-                        />
-                    </View>
+                        {user?.photoURL ? (
+                            <Image
+                                source={{ uri: user.photoURL }}
+                                style={{ width: 48, height: 48, borderRadius: 999 }}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <Ionicons
+                                name={uploadingPhoto ? 'cloud-upload-outline' : 'person-outline'}
+                                size={24}
+                                color={theme.colors.text}
+                            />
+                        )}
+                    </TouchableOpacity>
+
                     <View style={{ flex: 1 }}>
                         <Text
                             style={{
@@ -153,17 +245,19 @@ export default function ProfileScreen() {
                                 color: theme.colors.text,
                             }}
                         >
-                            Você
+                            {user?.displayName || 'Você'}
                         </Text>
                         <Text
                             style={{
                                 fontSize: 13,
                                 color: theme.colors.muted,
                             }}
+                            numberOfLines={1}
                         >
-                            Leitor do Lumina
+                            {user?.email || 'Leitor do Lumina'}
                         </Text>
                     </View>
+
                     <TouchableOpacity
                         onPress={() => router.push('/(app)/settings')}
                         style={{
@@ -184,6 +278,7 @@ export default function ProfileScreen() {
                         />
                     </TouchableOpacity>
                 </View>
+
 
                 {/* Loading simples */}
                 {loading ? (

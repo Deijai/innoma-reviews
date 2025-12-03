@@ -1,6 +1,7 @@
 // app/(auth)/forgot-password.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import React, { useState } from 'react';
 import {
     KeyboardAvoidingView,
@@ -14,6 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { useTheme } from '../../hooks/useTheme';
+import { auth } from '../../services/firebaseConfig';
+
 
 export default function ForgotPasswordScreen() {
     const { theme } = useTheme();
@@ -24,14 +27,25 @@ export default function ForgotPasswordScreen() {
     const [loading, setLoading] = useState(false);
 
     async function handleSend() {
-        if (!email.trim()) return;
+        if (!email.trim() || loading) return;
 
-        setLoading(true);
-        // TODO: na fase Firebase, chamar método real de reset de senha
-        await new Promise((r) => setTimeout(r, 800));
-        setLoading(false);
-        setSent(true);
+        try {
+            setLoading(true);
+
+            await sendPasswordResetEmail(auth, email.trim());
+
+            setSent(true);
+        } catch (error: any) {
+            console.log('Erro ao enviar e-mail de reset:', error);
+            alert(
+                error?.message ??
+                'Não foi possível enviar o e-mail de redefinição. Tente novamente.',
+            );
+        } finally {
+            setLoading(false);
+        }
     }
+
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>

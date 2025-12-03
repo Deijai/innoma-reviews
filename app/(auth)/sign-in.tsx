@@ -31,19 +31,28 @@ export default function SignInScreen() {
     const canSubmit = !!email.trim() && !!password;
 
     async function handleSignIn() {
-        if (!canSubmit) return;
+        if (!canSubmit || loading) return;
 
-        setLoading(true);
+        try {
+            setLoading(true);
 
-        // MOCK: sem Firebase ainda
-        await new Promise((r) => setTimeout(r, 600));
+            // Agora é login REAL: o signIn do store chama Firebase Auth
+            await signIn(email.trim(), password);
 
-        await signIn(email, password);
-
-        setLoading(false);
-
-        router.replace('/(app)/home');
+            // Redireciona para o app
+            router.replace('/(app)/home');
+        } catch (error: any) {
+            console.log('Erro ao fazer login:', error);
+            // Aqui você pode trocar por um toast bonito se quiser
+            alert(
+                error?.message ??
+                'Não foi possível entrar. Verifique seus dados e tente novamente.',
+            );
+        } finally {
+            setLoading(false);
+        }
     }
+
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>

@@ -1,8 +1,14 @@
 // app/(app)/settings.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+    Alert,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../stores/authStore';
@@ -10,10 +16,44 @@ import { useAuthStore } from '../../stores/authStore';
 export default function SettingsScreen() {
     const { theme, isDark, toggleTheme } = useTheme();
     const router = useRouter();
-    const { signOut, isLoading } = useAuthStore();
+    const { signOut } = useAuthStore();
+    const [signingOut, setSigningOut] = useState(false);
+
+    async function handleSignOut() {
+        if (signingOut) return;
+
+        Alert.alert(
+            'Sair da conta',
+            'Tem certeza que deseja sair do aplicativo?',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Sair',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setSigningOut(true);
+                            await signOut(); // desloga Firebase + limpa store
+                            router.replace('/(auth)/sign-in'); // volta pro fluxo de auth
+                        } catch (error) {
+                            console.log('Erro ao sair:', error);
+                            Alert.alert(
+                                'Erro',
+                                'Não foi possível sair. Tente novamente.',
+                            );
+                        } finally {
+                            setSigningOut(false);
+                        }
+                    },
+                },
+            ],
+        );
+    }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <SafeAreaView
+            style={{ flex: 1, backgroundColor: theme.colors.background }}
+        >
             {/* Header */}
             <View
                 style={{
@@ -38,7 +78,11 @@ export default function SettingsScreen() {
                         marginRight: 8,
                     }}
                 >
-                    <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
+                    <Ionicons
+                        name="chevron-back"
+                        size={18}
+                        color={theme.colors.text}
+                    />
                 </TouchableOpacity>
                 <Text
                     style={{
@@ -78,7 +122,13 @@ export default function SettingsScreen() {
                         marginBottom: 20,
                     }}
                 >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 10,
+                        }}
+                    >
                         <Ionicons
                             name={isDark ? 'moon-outline' : 'sunny-outline'}
                             size={20}
@@ -129,7 +179,8 @@ export default function SettingsScreen() {
 
                 <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => signOut()}
+                    onPress={handleSignOut}
+                    disabled={signingOut}
                     style={{
                         paddingVertical: 12,
                         paddingHorizontal: 12,
@@ -140,10 +191,21 @@ export default function SettingsScreen() {
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        opacity: signingOut ? 0.6 : 1,
                     }}
                 >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <Ionicons name="log-out-outline" size={20} color={theme.colors.danger} />
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 10,
+                        }}
+                    >
+                        <Ionicons
+                            name="log-out-outline"
+                            size={20}
+                            color={theme.colors.danger}
+                        />
                         <Text
                             style={{
                                 fontSize: 14,
@@ -151,7 +213,7 @@ export default function SettingsScreen() {
                                 color: theme.colors.danger,
                             }}
                         >
-                            {isLoading ? 'Saindo...' : 'Sair da conta'}
+                            {signingOut ? 'Saindo...' : 'Sair da conta'}
                         </Text>
                     </View>
                 </TouchableOpacity>
