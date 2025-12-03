@@ -1,8 +1,9 @@
 // app/(app)/discovery.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     ScrollView,
     Text,
     TextInput,
@@ -11,8 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCoverPreview } from '../../components/ui/BookCoverPreview';
-import { BOOKS } from '../../constants/mockData';
 import { useTheme } from '../../hooks/useTheme';
+
+import { fetchAllBooks } from '../../services/booksService';
+import type { Book } from '../../types/book';
 
 const CATEGORIES = [
     'Ficção',
@@ -29,12 +32,34 @@ const CURATED = [
     { id: 'c3', title: 'Alta performance & hábitos', query: 'hábitos' },
 ];
 
-const TRENDING = BOOKS.slice(0, 3);
-
 export default function DiscoveryScreen() {
     const { theme } = useTheme();
     const router = useRouter();
+
     const [search, setSearch] = useState('');
+    const [trending, setTrending] = useState<Book[]>([]);
+    const [loadingTrending, setLoadingTrending] = useState(true);
+
+    // Carrega livros "em alta" via service (hoje: top N dos mocks)
+    useEffect(() => {
+        let isMounted = true;
+
+        (async () => {
+            try {
+                const all = await fetchAllBooks();
+                if (!isMounted) return;
+
+                // Estratégia mock: primeiros 3 livros como "em alta"
+                setTrending(all.slice(0, 3));
+            } finally {
+                if (isMounted) setLoadingTrending(false);
+            }
+        })();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     function handleSearch(term?: string) {
         const q = (term ?? search).trim();
@@ -55,7 +80,9 @@ export default function DiscoveryScreen() {
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <SafeAreaView
+            style={{ flex: 1, backgroundColor: theme.colors.background }}
+        >
             <ScrollView
                 contentContainerStyle={{
                     paddingHorizontal: 16,
@@ -244,19 +271,27 @@ export default function DiscoveryScreen() {
                         Em alta esta semana
                     </Text>
 
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
-                            {TRENDING.map((book) => (
-                                <BookCoverPreview
-                                    key={book.id}
-                                    title={book.title}
-                                    author={book.author}
-                                    compact
-                                    onPress={() => router.push(`/book/${book.id}`)}
-                                />
-                            ))}
-                        </View>
-                    </ScrollView>
+                    {loadingTrending ? (
+                        <ActivityIndicator size="small" color={theme.colors.primary} />
+                    ) : trending.length === 0 ? (
+                        <Text style={{ fontSize: 13, color: theme.colors.muted }}>
+                            Nenhum livro em alta no momento.
+                        </Text>
+                    ) : (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                {trending.map((book) => (
+                                    <BookCoverPreview
+                                        key={book.id}
+                                        title={book.title}
+                                        author={book.author}
+                                        compact
+                                        onPress={() => router.push(`/book/${book.id}`)}
+                                    />
+                                ))}
+                            </View>
+                        </ScrollView>
+                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>

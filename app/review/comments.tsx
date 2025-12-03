@@ -13,7 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
-import { useReviewsStore, type Comment as CommentType } from '../../stores/reviewsStore';
+import {
+    useReviewsStore,
+    type Comment as CommentType,
+} from '../../stores/reviewsStore';
 
 export default function CommentsScreen() {
     const { theme } = useTheme();
@@ -27,6 +30,7 @@ export default function CommentsScreen() {
     const [replyTo, setReplyTo] = useState<CommentType | null>(null);
 
     const reviews = useReviewsStore((s) => s.reviews);
+    const comments = useReviewsStore((s) => s.comments);
     const addComment = useReviewsStore((s) => s.addComment);
 
     const review = useMemo(() => {
@@ -39,12 +43,17 @@ export default function CommentsScreen() {
         return undefined;
     }, [reviews, id, reviewId]);
 
-    const comments = review?.comments ?? [];
+    // 🔹 Comentários apenas desta review
+    const reviewComments = useMemo(() => {
+        if (!review) return [];
+        return comments.filter((c) => c.reviewId === review.id);
+    }, [comments, review]);
 
-    const topLevelComments = comments.filter((c) => !c.parentCommentId);
+    const topLevelComments = reviewComments.filter((c) => !c.parentCommentId);
+
     const childrenByParent = useMemo(() => {
         const map = new Map<string, CommentType[]>();
-        comments.forEach((c) => {
+        reviewComments.forEach((c) => {
             if (c.parentCommentId) {
                 if (!map.has(c.parentCommentId)) {
                     map.set(c.parentCommentId, []);
@@ -53,7 +62,7 @@ export default function CommentsScreen() {
             }
         });
         return map;
-    }, [comments]);
+    }, [reviewComments]);
 
     function handleBack() {
         router.back();
@@ -117,7 +126,6 @@ export default function CommentsScreen() {
                                 color: theme.colors.muted,
                             }}
                         >
-                            {/* Por enquanto, só data simplificada */}
                             {new Date(item.createdAt).toLocaleDateString()}
                         </Text>
                     </View>
@@ -195,7 +203,11 @@ export default function CommentsScreen() {
                             marginRight: 8,
                         }}
                     >
-                        <Ionicons name="chevron-down" size={18} color={theme.colors.text} />
+                        <Ionicons
+                            name="chevron-down"
+                            size={18}
+                            color={theme.colors.text}
+                        />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>
                         <Text
@@ -299,7 +311,9 @@ export default function CommentsScreen() {
                                 numberOfLines={1}
                             >
                                 Respondendo a{' '}
-                                <Text style={{ fontWeight: '600', color: theme.colors.text }}>
+                                <Text
+                                    style={{ fontWeight: '600', color: theme.colors.text }}
+                                >
                                     {replyTo.userName}
                                 </Text>
                             </Text>
@@ -329,7 +343,9 @@ export default function CommentsScreen() {
                             value={text}
                             onChangeText={setText}
                             placeholder={
-                                replyTo ? 'Responder comentário...' : 'Adicionar comentário...'
+                                replyTo
+                                    ? 'Responder comentário...'
+                                    : 'Adicionar comentário...'
                             }
                             placeholderTextColor={theme.colors.muted}
                             style={{

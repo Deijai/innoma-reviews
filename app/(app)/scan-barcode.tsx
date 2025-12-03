@@ -1,41 +1,91 @@
 // app/(app)/scan-barcode.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
-    ActivityIndicator,
     Platform,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../hooks/useTheme';
 
 export default function ScanBarcodeScreen() {
-    const { theme } = useTheme();
     const router = useRouter();
-    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+    const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
     const [lastCode, setLastCode] = useState<string | null>(null);
-
-    useEffect(() => {
-        (async () => {
-            const { status } = await BarCodeScanner.requestPermissionsAsync();
-            setHasPermission(status === 'granted');
-        })();
-    }, []);
 
     function handleClose() {
         router.back();
     }
 
     const handleBarCodeScanned = ({ data }: { data: string }) => {
+        if (scanned) return;
         setScanned(true);
         setLastCode(data);
         // Aqui, no futuro, vamos usar esse código para buscar/registrar livro via API/Firebase
     };
+
+    // Solicitar permissão se ainda não foi concedida
+    if (!permission) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+                <Text style={{ color: '#FFFFFF' }}>Carregando...</Text>
+            </View>
+        );
+    }
+
+    if (!permission.granted) {
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 24,
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontSize: 16,
+                            fontWeight: '700',
+                            color: '#FFFFFF',
+                            marginBottom: 8,
+                            textAlign: 'center',
+                        }}
+                    >
+                        Precisamos de acesso à câmera
+                    </Text>
+                    <Text
+                        style={{
+                            fontSize: 14,
+                            color: '#E5E7EB',
+                            textAlign: 'center',
+                            marginBottom: 24,
+                        }}
+                    >
+                        Para escanear códigos de barras, precisamos acessar sua câmera.
+                    </Text>
+                    <TouchableOpacity
+                        onPress={requestPermission}
+                        style={{
+                            paddingHorizontal: 24,
+                            paddingVertical: 12,
+                            borderRadius: 999,
+                            backgroundColor: '#FFFFFF',
+                        }}
+                    >
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
+                            Conceder permissão
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
@@ -84,130 +134,97 @@ export default function ScanBarcodeScreen() {
                 </View>
             </View>
 
-            {/* Conteúdo */}
-            {hasPermission === null ? (
-                <View
-                    style={{
-                        flex: 1,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: '#000',
+            {/* Câmera */}
+            <View style={{ flex: 1 }}>
+                <CameraView
+                    style={{ flex: 1 }}
+                    facing="back"
+                    onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                    barcodeScannerSettings={{
+                        barcodeTypes: [
+                            'ean13',
+                            'ean8',
+                            'upc_a',
+                            'upc_e',
+                            'code128',
+                            'code39',
+                        ],
                     }}
-                >
-                    <ActivityIndicator size="large" color="#FFFFFF" />
-                    <Text style={{ color: '#FFFFFF', marginTop: 8 }}>
-                        Solicitando permissão da câmera...
-                    </Text>
-                </View>
-            ) : hasPermission === false ? (
-                <View
-                    style={{
-                        flex: 1,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        paddingHorizontal: 24,
-                        backgroundColor: '#000',
-                    }}
-                >
-                    <Text
-                        style={{
-                            fontSize: 16,
-                            fontWeight: '700',
-                            color: '#FFFFFF',
-                            marginBottom: 8,
-                        }}
-                    >
-                        Sem acesso à câmera
-                    </Text>
-                    <Text
-                        style={{
-                            fontSize: 14,
-                            color: '#E5E7EB',
-                            textAlign: 'center',
-                        }}
-                    >
-                        Você precisa permitir o acesso à câmera nas configurações para
-                        utilizar o scanner.
-                    </Text>
-                </View>
-            ) : (
-                <View style={{ flex: 1 }}>
-                    <BarCodeScanner
-                        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-                        style={{ flex: 1 }}
-                    />
+                />
 
-                    {/* Overlay com último código lido */}
-                    <View
-                        style={{
-                            position: 'absolute',
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            paddingHorizontal: 16,
-                            paddingVertical: 16,
-                            backgroundColor: 'rgba(0,0,0,0.6)',
-                        }}
-                    >
-                        {lastCode ? (
-                            <>
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        color: '#E5E7EB',
-                                        marginBottom: 4,
-                                    }}
-                                >
-                                    Último código lido:
-                                </Text>
-                                <Text
-                                    style={{
-                                        fontSize: 14,
-                                        fontWeight: '700',
-                                        color: '#FFFFFF',
-                                        marginBottom: 12,
-                                    }}
-                                    numberOfLines={2}
-                                >
-                                    {lastCode}
-                                </Text>
-                                <View style={{ flexDirection: 'row', gap: 10 }}>
-                                    <TouchableOpacity
-                                        onPress={() => setScanned(false)}
-                                        style={{
-                                            flex: 1,
-                                            paddingVertical: 10,
-                                            borderRadius: 999,
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            backgroundColor: '#FFFFFF',
-                                        }}
-                                    >
-                                        <Text
-                                            style={{
-                                                fontSize: 14,
-                                                fontWeight: '600',
-                                                color: '#111827',
-                                            }}
-                                        >
-                                            Escanear novamente
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        ) : (
+                {/* Overlay com último código lido */}
+                <View
+                    style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        paddingHorizontal: 16,
+                        paddingVertical: 16,
+                        backgroundColor: 'rgba(0,0,0,0.6)',
+                    }}
+                >
+                    {lastCode ? (
+                        <>
                             <Text
                                 style={{
                                     fontSize: 13,
                                     color: '#E5E7EB',
+                                    marginBottom: 4,
                                 }}
                             >
-                                Aponte para o código de barras do livro para capturar.
+                                Último código lido:
                             </Text>
-                        )}
-                    </View>
+                            <Text
+                                style={{
+                                    fontSize: 14,
+                                    fontWeight: '700',
+                                    color: '#FFFFFF',
+                                    marginBottom: 12,
+                                }}
+                                numberOfLines={2}
+                            >
+                                {lastCode}
+                            </Text>
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setScanned(false);
+                                        setLastCode(null);
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        paddingVertical: 10,
+                                        borderRadius: 999,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: '#FFFFFF',
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize: 14,
+                                            fontWeight: '600',
+                                            color: '#111827',
+                                        }}
+                                    >
+                                        Escanear novamente
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    ) : (
+                        <Text
+                            style={{
+                                fontSize: 13,
+                                color: '#E5E7EB',
+                            }}
+                        >
+                            Aponte para o código de barras do livro para capturar.
+                        </Text>
+                    )}
                 </View>
-            )}
+            </View>
         </SafeAreaView>
     );
 }

@@ -1,4 +1,3 @@
-// src/services/reviewsService.ts
 import { REVIEWS } from '../mocks/reviews';
 import { useReviewsStore } from '../stores/reviewsStore';
 import type { Review } from '../types/review';
@@ -33,7 +32,18 @@ export async function fetchReviewById(
     return state.reviews.find((r) => r.id === reviewId);
 }
 
-// 🔹 NOVO: pegar reviews recentes (pro feed da Home)
+/**
+ * 🔹 NOVO: retorna TODAS as reviews (para perfil, estatísticas, etc.)
+ */
+export async function fetchAllReviews(): Promise<Review[]> {
+    ensureReviewsLoaded();
+    const state = useReviewsStore.getState();
+    return state.reviews;
+}
+
+/**
+ * Reviews recentes (pro feed da Home).
+ */
 export async function fetchRecentReviews(limit = 5): Promise<Review[]> {
     ensureReviewsLoaded();
     const state = useReviewsStore.getState();

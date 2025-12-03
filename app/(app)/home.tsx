@@ -301,8 +301,8 @@ export default function HomeScreen() {
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                             <View style={{ flex: 1 }}>
                                 <PrimaryButton
-                                    title="Registrar leitura (+10 páginas)"
-                                    onPress={handleQuickRead}
+                                    title="Registrar leitura"
+                                    onPress={() => router.push('/(app)/log-reading')}
                                     style={{ width: '100%' }}
                                 />
                             </View>
@@ -370,9 +370,9 @@ export default function HomeScreen() {
 
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             <View style={{ flexDirection: 'row', gap: 12 }}>
-                                {recommended.map((book) => (
+                                {recommended.map((book, index) => (
                                     <BookCoverPreview
-                                        key={book.id}
+                                        key={book.id + index.toString()}
                                         title={book.title}
                                         author={book.author}
                                         compact

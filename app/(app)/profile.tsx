@@ -1,13 +1,16 @@
 // app/(app)/profile.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../hooks/useTheme';
-import { useBooksStore } from '../../stores/booksStore';
-import { useReviewsStore } from '../../stores/reviewsStore';
+
+import { fetchAllBooks } from '../../services/booksService';
+import { fetchAllReviews } from '../../services/reviewsService';
+import type { Book } from '../../types/book';
+import type { Review } from '../../types/review';
 
 const READING_GOAL = 12; // meta de livros/ano (mock)
 
@@ -48,8 +51,32 @@ export default function ProfileScreen() {
     const { theme } = useTheme();
     const router = useRouter();
 
-    const books = useBooksStore((s) => s.books);
-    const reviews = useReviewsStore((s) => s.reviews);
+    const [books, setBooks] = useState<Book[]>([]);
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        (async () => {
+            try {
+                const [allBooks, allReviews] = await Promise.all([
+                    fetchAllBooks(),
+                    fetchAllReviews(),
+                ]);
+
+                if (!isMounted) return;
+                setBooks(allBooks);
+                setReviews(allReviews);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        })();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const stats = useMemo(() => {
         const reading = books.filter((b) => b.status === 'reading');
@@ -80,7 +107,7 @@ export default function ProfileScreen() {
 
     const highlights = useMemo(
         () => reviews.slice(0, 6),
-        [reviews]
+        [reviews],
     );
 
     return (
@@ -150,9 +177,26 @@ export default function ProfileScreen() {
                             borderColor: theme.colors.border,
                         }}
                     >
-                        <Ionicons name="settings-outline" size={18} color={theme.colors.text} />
+                        <Ionicons
+                            name="settings-outline"
+                            size={18}
+                            color={theme.colors.text}
+                        />
                     </TouchableOpacity>
                 </View>
+
+                {/* Loading simples */}
+                {loading ? (
+                    <Text
+                        style={{
+                            fontSize: 14,
+                            color: theme.colors.muted,
+                            marginBottom: 12,
+                        }}
+                    >
+                        Carregando suas estatísticas...
+                    </Text>
+                ) : null}
 
                 {/* Reading challenge */}
                 <View
@@ -203,7 +247,9 @@ export default function ProfileScreen() {
                             }}
                         >
                             Páginas lidas (estimado):{' '}
-                            <Text style={{ fontWeight: '700', color: theme.colors.text }}>
+                            <Text
+                                style={{ fontWeight: '700', color: theme.colors.text }}
+                            >
                                 {stats.pagesRead}
                             </Text>
                         </Text>
@@ -358,9 +404,9 @@ export default function ProfileScreen() {
                                 gap: 10,
                             }}
                         >
-                            {highlights.map((review) => (
+                            {highlights.map((review, index) => (
                                 <TouchableOpacity
-                                    key={review.id}
+                                    key={review.id + index.toString()}
                                     activeOpacity={0.9}
                                     onPress={() =>
                                         router.push({
@@ -405,7 +451,7 @@ export default function ProfileScreen() {
                                         }}
                                         numberOfLines={3}
                                     >
-                                        {review.body}
+                                        {review.text}
                                     </Text>
                                 </TouchableOpacity>
                             ))}

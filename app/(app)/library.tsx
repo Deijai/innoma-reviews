@@ -1,14 +1,21 @@
 // app/(app)/library.tsx
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { FlatList, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCoverPreview } from '../../components/ui/BookCoverPreview';
 import { EmptyLibraryState } from '../../components/ui/EmptyLibraryState';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
-import { type BookStatus } from '../../constants/mockData';
 import { useTheme } from '../../hooks/useTheme';
-import { useBooksStore } from '../../stores/booksStore';
+
+import { fetchAllBooks } from '../../services/booksService';
+import type { Book, BookStatus } from '../../types/book';
 
 const OPTIONS = [
     { label: 'Lendo', value: 'reading' },
@@ -19,20 +26,62 @@ const OPTIONS = [
 export default function LibraryScreen() {
     const { theme } = useTheme();
     const router = useRouter();
-    const [shelf, setShelf] = useState<BookStatus>('reading');
 
-    const books = useBooksStore((s) => s.books);
+    const [shelf, setShelf] = useState<BookStatus>('reading');
+    const [books, setBooks] = useState<Book[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Carrega todos os livros via service
+    useEffect(() => {
+        let isMounted = true;
+
+        (async () => {
+            try {
+                const all = await fetchAllBooks();
+                if (!isMounted) return;
+                setBooks(all);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        })();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const booksOfShelf = useMemo(
         () => books.filter((b) => b.status === shelf),
-        [books, shelf]
+        [books, shelf],
     );
 
     const shelfLabel =
         OPTIONS.find((o) => o.value === shelf)?.label ?? 'Minha estante';
 
+    if (loading) {
+        return (
+            <SafeAreaView
+                style={{ flex: 1, backgroundColor: theme.colors.background }}
+            >
+                <View
+                    style={{
+                        flex: 1,
+                        paddingHorizontal: 16,
+                        paddingTop: 16,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}
+                >
+                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <SafeAreaView
+            style={{ flex: 1, backgroundColor: theme.colors.background }}
+        >
             <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }}>
                 {/* Header */}
                 <View style={{ marginBottom: 16 }}>
@@ -88,7 +137,9 @@ export default function LibraryScreen() {
                                     title={item.title}
                                     author={item.author}
                                     progress={
-                                        item.pages > 0 ? item.currentPage / item.pages : undefined
+                                        item.pages > 0
+                                            ? item.currentPage / item.pages
+                                            : undefined
                                     }
                                     compact
                                 />

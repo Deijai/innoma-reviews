@@ -1,6 +1,6 @@
 // app/(app)/search.tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     FlatList,
     Text,
@@ -10,28 +10,51 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
-import { BOOKS } from '../../mocks/books'; // ajuste o caminho pro seu mock
+
+import { fetchAllBooks } from '../../services/booksService';
+import type { Book } from '../../types/book';
 
 export default function SearchScreen() {
     const { theme } = useTheme();
     const router = useRouter();
     const { q } = useLocalSearchParams<{ q?: string }>();
 
-    const [search, setSearch] = React.useState(q ? String(q) : '');
+    const [search, setSearch] = useState(q ? String(q) : '');
+    const [books, setBooks] = useState<Book[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        (async () => {
+            try {
+                const all = await fetchAllBooks();
+                if (!isMounted) return;
+                setBooks(all);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        })();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const filteredBooks = useMemo(() => {
         const term = search.trim().toLowerCase();
         if (!term) return [];
-        return BOOKS.filter((book) => {
+        return books.filter((book) => {
+            const tags = book.tags ?? [];
             return (
                 book.title.toLowerCase().includes(term) ||
                 book.author.toLowerCase().includes(term) ||
-                book.tags.some((t) => t.toLowerCase().includes(term))
+                tags.some((t) => t.toLowerCase().includes(term))
             );
         });
-    }, [search]);
+    }, [search, books]);
 
-    const renderItem = ({ item }: any) => (
+    const renderItem = ({ item }: { item: Book }) => (
         <TouchableOpacity
             onPress={() => router.push(`/book/${item.id}`)}
             style={{
@@ -98,8 +121,27 @@ export default function SearchScreen() {
                 />
             </View>
 
-            {/* EMPTY STATE */}
-            {hasSearchTerm && !hasResults && (
+            {/* Loading simples */}
+            {loading && (
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontSize: 14,
+                            color: theme.colors.muted,
+                        }}
+                    >
+                        Carregando catálogo...
+                    </Text>
+                </View>
+            )}
+
+            {!loading && hasSearchTerm && !hasResults && (
                 <View
                     style={{
                         flex: 1,
@@ -135,8 +177,8 @@ export default function SearchScreen() {
                             marginBottom: 16,
                         }}
                     >
-                        Não encontramos resultados para "{search}". Tente buscar por outro título,
-                        autor ou gênero.
+                        Não encontramos resultados para "{search}". Tente buscar por outro
+                        título, autor ou gênero.
                     </Text>
 
                     <TouchableOpacity
@@ -161,8 +203,7 @@ export default function SearchScreen() {
                 </View>
             )}
 
-            {/* LISTA DE RESULTADOS */}
-            {hasSearchTerm && hasResults && (
+            {!loading && hasSearchTerm && hasResults && (
                 <FlatList
                     data={filteredBooks}
                     keyExtractor={(item) => item.id}
@@ -174,8 +215,7 @@ export default function SearchScreen() {
                 />
             )}
 
-            {/* Estado inicial: sem termo de busca */}
-            {!hasSearchTerm && (
+            {!loading && !hasSearchTerm && (
                 <View
                     style={{
                         flex: 1,

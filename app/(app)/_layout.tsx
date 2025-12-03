@@ -75,8 +75,10 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                 onPress={() => router.push('/(app)/scan-barcode')}
                                 style={{
                                     position: 'absolute',
+                                    flexDirection: 'row',
                                     right: 16,
-                                    bottom: 24,
+                                    left: 45,
+                                    bottom: 45,
                                     width: 56,
                                     height: 56,
                                     borderRadius: 999,
@@ -111,23 +113,25 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                         style={{
                             flex: 1,
                             height: 48,
+                            minWidth: 80,
                             flexDirection: 'row',
                             justifyContent: 'center',
                             alignItems: 'center',
                             borderRadius: 24,
                             marginHorizontal: 4,
+                            paddingHorizontal: 10,
                             backgroundColor: isFocused ? theme.colors.primarySoft : 'transparent',
                         }}
                     >
                         <Ionicons
                             name={icon(isFocused) as any}
-                            size={24}
+                            size={20}
                             color={isFocused ? theme.colors.primary : theme.colors.muted}
                         />
                         <Text
                             style={{
                                 marginLeft: 6,
-                                fontSize: 10,
+                                fontSize: 12,
                                 fontWeight: '600',
                                 color: isFocused ? theme.colors.primary : theme.colors.muted,
                             }}
@@ -151,6 +155,7 @@ export default function AppTabsLayout() {
                 headerShown: false,
                 tabBarActiveTintColor: theme.colors.primary,
                 tabBarInactiveTintColor: theme.colors.muted,
+
             }}
         >
             <Tabs.Screen name="home" options={{ title: 'Início' }} />

@@ -21,7 +21,7 @@ export default function LogReadingScreen() {
     const router = useRouter();
     const books = useBooksStore((s) => s.books);
     const updateProgress = useBooksStore((s) => s.updateProgress);
-    const setStatus = useBooksStore((s) => s.setStatus);
+    const setStatus = useBooksStore((s) => s.updateStatus);
 
     const readingBooks = useMemo(
         () => books.filter((b) => b.status === 'reading'),

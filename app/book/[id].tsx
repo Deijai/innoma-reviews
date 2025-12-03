@@ -35,7 +35,7 @@ export default function BookDetailScreen() {
     const book = useBooksStore((s) =>
         s.books.find((b) => b.id === id)
     );
-    const setStatus = useBooksStore((s) => s.setStatus);
+    const setStatus = useBooksStore((s) => s.updateStatus);
 
     if (!book) {
         return (
