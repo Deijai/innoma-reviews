@@ -204,7 +204,7 @@ export default function LogReadingScreen() {
                                                 paddingHorizontal: 12,
                                                 paddingVertical: 10,
                                                 backgroundColor: isSelected
-                                                    ? theme.colors.primarySoft
+                                                    ? theme.colors.primary
                                                     : 'transparent',
                                                 borderTopWidth: index === 0 ? 0 : 1,
                                                 borderTopColor: theme.colors.border,

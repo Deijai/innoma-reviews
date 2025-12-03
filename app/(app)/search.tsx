@@ -1,149 +1,211 @@
 // app/(app)/search.tsx
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
-import { FlatList, Text, TouchableOpacity, View } from 'react-native';
+import {
+    FlatList,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BookCoverPreview } from '../../components/ui/BookCoverPreview';
-import { BOOKS } from '../../constants/mockData';
 import { useTheme } from '../../hooks/useTheme';
+import { BOOKS } from '../../mocks/books'; // ajuste o caminho pro seu mock
 
 export default function SearchScreen() {
     const { theme } = useTheme();
     const router = useRouter();
     const { q } = useLocalSearchParams<{ q?: string }>();
-    const query = (q ?? '').toString().trim().toLowerCase();
 
-    const results = useMemo(() => {
-        if (!query) return [];
+    const [search, setSearch] = React.useState(q ? String(q) : '');
+
+    const filteredBooks = useMemo(() => {
+        const term = search.trim().toLowerCase();
+        if (!term) return [];
         return BOOKS.filter((book) => {
-            const text = `${book.title} ${book.author} ${book.tags.join(' ')}`.toLowerCase();
-            return text.includes(query);
+            return (
+                book.title.toLowerCase().includes(term) ||
+                book.author.toLowerCase().includes(term) ||
+                book.tags.some((t) => t.toLowerCase().includes(term))
+            );
         });
-    }, [query]);
+    }, [search]);
+
+    const renderItem = ({ item }: any) => (
+        <TouchableOpacity
+            onPress={() => router.push(`/book/${item.id}`)}
+            style={{
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.colors.border,
+            }}
+        >
+            <Text
+                style={{
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: theme.colors.text,
+                }}
+            >
+                {item.title}
+            </Text>
+            <Text
+                style={{
+                    fontSize: 13,
+                    color: theme.colors.muted,
+                    marginTop: 2,
+                }}
+            >
+                {item.author}
+            </Text>
+        </TouchableOpacity>
+    );
+
+    const hasSearchTerm = !!search.trim();
+    const hasResults = filteredBooks.length > 0;
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-            {/* Header */}
+        <SafeAreaView
+            style={{
+                flex: 1,
+                backgroundColor: theme.colors.background,
+            }}
+        >
+            {/* Campo de busca */}
             <View
                 style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
                     paddingHorizontal: 16,
                     paddingTop: 12,
                     paddingBottom: 8,
                 }}
             >
-                <TouchableOpacity
-                    onPress={() => router.back()}
+                <TextInput
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder="Buscar livros, autores, gêneros..."
+                    placeholderTextColor={theme.colors.muted}
+                    autoCapitalize="none"
                     style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 999,
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
                         backgroundColor: theme.colors.card,
                         borderWidth: 1,
                         borderColor: theme.colors.border,
-                        marginRight: 8,
+                        color: theme.colors.text,
+                        fontSize: 14,
+                    }}
+                />
+            </View>
+
+            {/* EMPTY STATE */}
+            {hasSearchTerm && !hasResults && (
+                <View
+                    style={{
+                        flex: 1,
+                        paddingHorizontal: 24,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                     }}
                 >
-                    <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
-                </TouchableOpacity>
-
-                <View style={{ flex: 1 }}>
                     <Text
-                        numberOfLines={1}
                         style={{
-                            fontSize: 16,
+                            fontSize: 40,
+                            marginBottom: 12,
+                        }}
+                    >
+                        🔍
+                    </Text>
+                    <Text
+                        style={{
+                            fontSize: 18,
                             fontWeight: '700',
                             color: theme.colors.text,
+                            marginBottom: 8,
+                            textAlign: 'center',
                         }}
                     >
-                        Resultados
+                        Nada encontrado
                     </Text>
                     <Text
-                        numberOfLines={1}
                         style={{
-                            fontSize: 12,
+                            fontSize: 14,
                             color: theme.colors.muted,
+                            textAlign: 'center',
+                            marginBottom: 16,
                         }}
                     >
-                        {query ? `Buscando por “${query}”` : 'Nenhum termo de busca informado'}
+                        Não encontramos resultados para "{search}". Tente buscar por outro título,
+                        autor ou gênero.
+                    </Text>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/(app)/discovery')}
+                        style={{
+                            paddingHorizontal: 18,
+                            paddingVertical: 10,
+                            borderRadius: 999,
+                            backgroundColor: theme.colors.primary,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                fontSize: 14,
+                                fontWeight: '600',
+                                color: '#FFFFFF',
+                            }}
+                        >
+                            Voltar para Descobrir
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* LISTA DE RESULTADOS */}
+            {hasSearchTerm && hasResults && (
+                <FlatList
+                    data={filteredBooks}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={{
+                        paddingHorizontal: 16,
+                        paddingBottom: 20,
+                    }}
+                />
+            )}
+
+            {/* Estado inicial: sem termo de busca */}
+            {!hasSearchTerm && (
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 24,
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontSize: 18,
+                            fontWeight: '700',
+                            color: theme.colors.text,
+                            marginBottom: 8,
+                            textAlign: 'center',
+                        }}
+                    >
+                        Comece digitando algo
+                    </Text>
+                    <Text
+                        style={{
+                            fontSize: 14,
+                            color: theme.colors.muted,
+                            textAlign: 'center',
+                        }}
+                    >
+                        Busque por um livro, autor ou gênero para ver os resultados aqui.
                     </Text>
                 </View>
-            </View>
-
-            {/* Lista de resultados */}
-            <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}>
-                {query.length === 0 ? (
-                    <View
-                        style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Text
-                            style={{
-                                fontSize: 14,
-                                color: theme.colors.muted,
-                                textAlign: 'center',
-                            }}
-                        >
-                            Digite algo na tela de Descobrir para ver resultados aqui.
-                        </Text>
-                    </View>
-                ) : results.length === 0 ? (
-                    <View
-                        style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Text
-                            style={{
-                                fontSize: 16,
-                                fontWeight: '700',
-                                color: theme.colors.text,
-                                marginBottom: 6,
-                            }}
-                        >
-                            Nenhum resultado encontrado
-                        </Text>
-                        <Text
-                            style={{
-                                fontSize: 14,
-                                color: theme.colors.muted,
-                                textAlign: 'center',
-                            }}
-                        >
-                            Tente usar termos diferentes ou mais genéricos.
-                        </Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={results}
-                        keyExtractor={(item) => item.id}
-                        contentContainerStyle={{ paddingBottom: 24 }}
-                        numColumns={2}
-                        columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                activeOpacity={0.85}
-                                onPress={() => router.push(`/book/${item.id}`)}
-                            >
-                                <BookCoverPreview
-                                    title={item.title}
-                                    author={item.author}
-                                    compact
-                                />
-                            </TouchableOpacity>
-                        )}
-                    />
-                )}
-            </View>
+            )}
         </SafeAreaView>
     );
 }
