@@ -1,78 +1,77 @@
 // constants/mockData.ts
-
 export type BookStatus = 'reading' | 'want' | 'read';
 
 export type Book = {
     id: string;
     title: string;
     author: string;
-    status: BookStatus;
-    rating: number; // 0-5
     pages: number;
     currentPage: number;
-    description: string;
+    rating: number;
+    status: BookStatus;
     tags: string[];
+    description: string;
 };
 
 export const BOOKS: Book[] = [
     {
-        id: 'clean-architecture',
-        title: 'Clean Architecture',
-        author: 'Robert C. Martin',
-        status: 'reading',
-        rating: 4.7,
-        pages: 420,
-        currentPage: 180,
-        description:
-            'Um guia prático para criar sistemas de software robustos, flexíveis e de fácil manutenção usando princípios de arquitetura limpa.',
-        tags: ['Arquitetura', 'Boas práticas', 'Engenharia de software'],
-    },
-    {
-        id: 'pragmatic-programmer',
-        title: 'The Pragmatic Programmer',
-        author: 'Andrew Hunt & David Thomas',
-        status: 'read',
-        rating: 4.9,
-        pages: 352,
-        currentPage: 352,
-        description:
-            'Clássico que apresenta princípios práticos para se tornar um desenvolvedor mais eficaz e pragmático.',
-        tags: ['Carreira', 'Boas práticas'],
-    },
-    {
         id: 'atomic-habits',
-        title: 'Atomic Habits',
+        title: 'Hábitos Atômicos',
         author: 'James Clear',
-        status: 'read',
-        rating: 4.8,
         pages: 320,
-        currentPage: 320,
+        currentPage: 64,
+        rating: 4.8,
+        status: 'reading', // 👈 LENDO AGORA
+        tags: ['produtividade', 'hábitos', 'desenvolvimento pessoal'],
         description:
-            'Como pequenos hábitos, quando bem estruturados, geram mudanças significativas ao longo do tempo.',
-        tags: ['Hábitos', 'Produtividade', 'Desenvolvimento pessoal'],
+            'Um guia prático sobre como construir bons hábitos, eliminar maus hábitos e dominar os pequenos comportamentos que levam a resultados extraordinários.',
     },
     {
         id: 'deep-work',
-        title: 'Deep Work',
+        title: 'Trabalho Focado',
         author: 'Cal Newport',
-        status: 'want',
-        rating: 4.6,
         pages: 304,
         currentPage: 0,
+        rating: 4.7,
+        status: 'want', // 👈 QUERO LER
+        tags: ['foco', 'produtividade', 'carreira'],
         description:
-            'Explora o poder do foco profundo em um mundo cheio de distrações para produzir trabalho de alto valor.',
-        tags: ['Foco', 'Produtividade'],
+            'Uma análise sobre a importância do trabalho profundo em um mundo cheio de distrações e como cultivar a capacidade de se concentrar em tarefas cognitivas difíceis.',
     },
     {
-        id: 'ddd-blue-book',
-        title: 'Domain-Driven Design',
-        author: 'Eric Evans',
-        status: 'want',
-        rating: 4.5,
-        pages: 560,
-        currentPage: 0,
+        id: 'clean-code',
+        title: 'Código Limpo',
+        author: 'Robert C. Martin',
+        pages: 464,
+        currentPage: 464,
+        rating: 4.9,
+        status: 'read', // 👈 JÁ LIDO
+        tags: ['programação', 'engenharia de software'],
         description:
-            'Livro clássico sobre modelagem de domínios complexos e alinhamento do software com o negócio.',
-        tags: ['DDD', 'Arquitetura'],
+            'Um clássico da engenharia de software que traz princípios, padrões e boas práticas para escrever código legível, manutenível e profissional.',
+    },
+    {
+        id: 'ddd',
+        title: 'Domain-Driven Design: Tackling Complexity in the Heart of Software',
+        author: 'Eric Evans',
+        pages: 560,
+        currentPage: 120,
+        rating: 4.6,
+        status: 'reading',
+        tags: ['arquitetura', 'domínio', 'software'],
+        description:
+            'Uma abordagem completa para lidar com complexidade em sistemas de software por meio de modelos ricos de domínio e colaboração intensa entre especialistas e desenvolvedores.',
+    },
+    {
+        id: 'lean-startup',
+        title: 'A Startup Enxuta',
+        author: 'Eric Ries',
+        pages: 336,
+        currentPage: 0,
+        rating: 4.5,
+        status: 'want',
+        tags: ['startup', 'negócios', 'inovação'],
+        description:
+            'Princípios para construir produtos e negócios inovadores usando ciclos rápidos de feedback, experimentação contínua e aprendizado validado.',
     },
 ];

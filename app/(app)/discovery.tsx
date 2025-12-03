@@ -2,7 +2,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookCoverPreview } from '../../components/ui/BookCoverPreview';
 import { BOOKS } from '../../constants/mockData';
@@ -18,9 +24,9 @@ const CATEGORIES = [
 ];
 
 const CURATED = [
-    { id: 'c1', title: 'Essenciais de programação' },
-    { id: 'c2', title: 'Clássicos da literatura' },
-    { id: 'c3', title: 'Alta performance & hábitos' },
+    { id: 'c1', title: 'Essenciais de programação', query: 'programação' },
+    { id: 'c2', title: 'Clássicos da literatura', query: 'clássicos' },
+    { id: 'c3', title: 'Alta performance & hábitos', query: 'hábitos' },
 ];
 
 const TRENDING = BOOKS.slice(0, 3);
@@ -30,19 +36,32 @@ export default function DiscoveryScreen() {
     const router = useRouter();
     const [search, setSearch] = useState('');
 
-    function handleSearch() {
-        const q = search.trim();
+    function handleSearch(term?: string) {
+        const q = (term ?? search).trim();
         if (!q) return;
+
         router.push({
             pathname: '/(app)/search',
             params: { q },
         });
     }
 
+    function handleCategoryPress(category: string) {
+        handleSearch(category);
+    }
+
+    function handleCuratedPress(query: string) {
+        handleSearch(query);
+    }
+
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
             <ScrollView
-                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
+                contentContainerStyle={{
+                    paddingHorizontal: 16,
+                    paddingTop: 16,
+                    paddingBottom: 32,
+                }}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Título + search */}
@@ -64,7 +83,7 @@ export default function DiscoveryScreen() {
                             marginBottom: 12,
                         }}
                     >
-                        Busque por títulos, autores ou temas.
+                        Busque por títulos, autores, temas ou explore nossas coleções.
                     </Text>
 
                     <View
@@ -79,7 +98,7 @@ export default function DiscoveryScreen() {
                             borderWidth: 1,
                         }}
                     >
-                        <TouchableOpacity onPress={handleSearch}>
+                        <TouchableOpacity onPress={() => handleSearch()}>
                             <Ionicons
                                 name="search-outline"
                                 size={18}
@@ -99,7 +118,7 @@ export default function DiscoveryScreen() {
                                 color: theme.colors.text,
                             }}
                             returnKeyType="search"
-                            onSubmitEditing={handleSearch}
+                            onSubmitEditing={() => handleSearch()}
                         />
                     </View>
                 </View>
@@ -130,6 +149,7 @@ export default function DiscoveryScreen() {
                                 <TouchableOpacity
                                     key={list.id}
                                     activeOpacity={0.85}
+                                    onPress={() => handleCuratedPress(list.query)}
                                     style={{
                                         width: 220,
                                         padding: 16,
@@ -155,7 +175,7 @@ export default function DiscoveryScreen() {
                                             color: theme.colors.muted,
                                         }}
                                     >
-                                        Coleção curada para você explorar novos títulos.
+                                        Toque para ver livros relacionados a este tema.
                                     </Text>
                                 </TouchableOpacity>
                             ))}
@@ -187,6 +207,7 @@ export default function DiscoveryScreen() {
                             <TouchableOpacity
                                 key={cat}
                                 activeOpacity={0.85}
+                                onPress={() => handleCategoryPress(cat)}
                                 style={{
                                     paddingVertical: 10,
                                     paddingHorizontal: 14,
