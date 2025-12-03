@@ -2,48 +2,50 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-
-type User = {
-    id: string;
-    name: string;
-    email: string;
-};
+import type { AuthStateUser } from '../types/user';
 
 type AuthState = {
-    user: User | null;
+    user: AuthStateUser | null;
     isLoading: boolean;
-    signIn: (email: string, password: string) => Promise<void>;
+
+    // mock de login
+    signIn: (email: string, password: string) => Promise<AuthStateUser>;
     signOut: () => Promise<void>;
+    setUser: (user: AuthStateUser | null) => void;
 };
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             user: null,
             isLoading: false,
-            signIn: async (email, _password) => {
-                set({ isLoading: true });
-                // 🔹 MOCK: aqui futuramente entra Firebase/OIDC/etc
-                await new Promise((r) => setTimeout(r, 800));
 
-                set({
-                    user: {
-                        id: 'mock-user-1',
-                        name: 'Leitor Lumina',
-                        email,
-                    },
-                    isLoading: false,
-                });
+            async signIn(email, _password) {
+                // FASE MOCK: gera um usuário fake
+                const user: AuthStateUser = {
+                    id: `user-${email}`,
+                    displayName: email.split('@')[0] || 'Leitor',
+                    email,
+                    photoURL: null,
+                };
+
+                set({ user });
+
+                return user;
             },
-            signOut: async () => {
-                set({ isLoading: true });
-                await new Promise((r) => setTimeout(r, 300));
-                set({ user: null, isLoading: false });
+
+            async signOut() {
+                set({ user: null });
+            },
+
+            setUser(user) {
+                set({ user });
             },
         }),
         {
             name: 'lumina-auth',
             storage: createJSONStorage(() => AsyncStorage),
-        }
-    )
+            // opcional: hooks de hidratação se quiser usar isLoading
+        },
+    ),
 );

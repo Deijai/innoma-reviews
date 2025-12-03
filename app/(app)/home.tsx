@@ -1,15 +1,27 @@
 // app/(app)/home.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 
 import { BookCoverPreview } from '../../components/ui/BookCoverPreview';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
-import { useBooksStore } from '../../stores/booksStore';
-import { useReviewsStore } from '../../stores/reviewsStore';
+
+import {
+    fetchAllBooks,
+    updateBookProgress,
+} from '../../services/booksService';
+import { fetchRecentReviews } from '../../services/reviewsService';
+import type { Book } from '../../types/book';
+import type { Review } from '../../types/review';
 
 // Helper simples para tempo relativo
 function formatRelativeTime(timestamp: number): string {
@@ -27,43 +39,101 @@ export default function HomeScreen() {
     const { theme } = useTheme();
     const router = useRouter();
 
-    const books = useBooksStore((s) => s.books);
-    const updateProgress = useBooksStore((s) => s.updateProgress);
+    const [books, setBooks] = useState<Book[]>([]);
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const reviews = useReviewsStore((s) => s.reviews);
+    // Carrega livros + reviews recentes via services
+    useEffect(() => {
+        let isMounted = true;
 
-    const { currentlyReading, recommended } = useMemo(() => {
+        (async () => {
+            try {
+                const [allBooks, recent] = await Promise.all([
+                    fetchAllBooks(),
+                    fetchRecentReviews(5),
+                ]);
+
+                if (!isMounted) return;
+
+                setBooks(allBooks);
+                setReviews(recent);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        })();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const { currentlyReading, recommended, booksById } = useMemo(() => {
         if (!books.length) {
-            return { currentlyReading: undefined, recommended: [] as typeof books };
+            return {
+                currentlyReading: undefined as Book | undefined,
+                recommended: [] as Book[],
+                booksById: {} as Record<string, Book>,
+            };
         }
 
-        const reading = books.find((b) => b.status === 'reading') ?? books[0];
+        const reading =
+            books.find((b) => b.status === 'reading') ?? books[0];
+
         const recs = books
             .filter((b) => !reading || b.id !== reading.id)
             .slice(0, 5);
 
-        return { currentlyReading: reading, recommended: recs };
+        const map: Record<string, Book> = {};
+        for (const b of books) {
+            map[b.id] = b;
+        }
+
+        return { currentlyReading: reading, recommended: recs, booksById: map };
     }, [books]);
 
-    const recentReviews = useMemo(
-        () => reviews.slice(0, 5),
-        [reviews]
-    );
+    const recentReviews = reviews;
 
-    function handleQuickRead() {
+    async function handleQuickRead() {
         if (!currentlyReading) return;
         if (!currentlyReading.pages) return;
 
         const nextPage = Math.min(
             currentlyReading.currentPage + 10,
-            currentlyReading.pages
+            currentlyReading.pages,
         );
 
-        updateProgress(currentlyReading.id, nextPage);
+        await updateBookProgress(currentlyReading.id, nextPage);
+
+        // Atualiza o estado local para refletir na UI imediatamente
+        setBooks((prev) =>
+            prev.map((b) =>
+                b.id === currentlyReading.id
+                    ? { ...b, currentPage: nextPage }
+                    : b,
+            ),
+        );
+    }
+
+    if (loading) {
+        return (
+            <SafeAreaView
+                style={{
+                    flex: 1,
+                    backgroundColor: theme.colors.background,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}
+            >
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </SafeAreaView>
+        );
     }
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <SafeAreaView
+            style={{ flex: 1, backgroundColor: theme.colors.background }}
+        >
             <ScrollView
                 contentContainerStyle={{
                     paddingHorizontal: 16,
@@ -163,7 +233,9 @@ export default function HomeScreen() {
 
                             <TouchableOpacity
                                 activeOpacity={0.8}
-                                onPress={() => router.push(`/book/${currentlyReading.id}`)}
+                                onPress={() =>
+                                    router.push(`/book/${currentlyReading.id}`)
+                                }
                             >
                                 <BookCoverPreview
                                     title={currentlyReading.title}
@@ -189,7 +261,8 @@ export default function HomeScreen() {
                                             borderRadius: 999,
                                             width: `${Math.round(
                                                 (currentlyReading.currentPage /
-                                                    currentlyReading.pages) * 100
+                                                    currentlyReading.pages) *
+                                                100,
                                             )}%`,
                                             backgroundColor: theme.colors.primary,
                                         }}
@@ -204,13 +277,19 @@ export default function HomeScreen() {
                                 >
                                     Página{' '}
                                     <Text
-                                        style={{ fontWeight: '700', color: theme.colors.text }}
+                                        style={{
+                                            fontWeight: '700',
+                                            color: theme.colors.text,
+                                        }}
                                     >
                                         {currentlyReading.currentPage}
                                     </Text>{' '}
                                     de{' '}
                                     <Text
-                                        style={{ fontWeight: '700', color: theme.colors.text }}
+                                        style={{
+                                            fontWeight: '700',
+                                            color: theme.colors.text,
+                                        }}
                                     >
                                         {currentlyReading.pages}
                                     </Text>
@@ -223,14 +302,15 @@ export default function HomeScreen() {
                             <View style={{ flex: 1 }}>
                                 <PrimaryButton
                                     title="Registrar leitura (+10 páginas)"
-                                    onPress={() =>
-                                        router.push('/(app)/log-reading')}
+                                    onPress={handleQuickRead}
                                     style={{ width: '100%' }}
                                 />
                             </View>
                             <TouchableOpacity
                                 activeOpacity={0.85}
-                                onPress={() => router.push(`/book/${currentlyReading.id}`)}
+                                onPress={() =>
+                                    router.push(`/book/${currentlyReading.id}`)
+                                }
                                 style={{
                                     width: 48,
                                     height: 48,
@@ -394,96 +474,101 @@ export default function HomeScreen() {
                             />
                         </View>
                     ) : (
-                        recentReviews.map((review) => (
-                            <TouchableOpacity
-                                key={review.id}
-                                activeOpacity={0.9}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 12,
-                                    borderRadius: 16,
-                                    marginBottom: 10,
-                                    backgroundColor: theme.colors.card,
-                                    borderWidth: 1,
-                                    borderColor: theme.colors.border,
-                                }}
-                                onPress={() =>
-                                    router.push({
-                                        pathname: '/review/comments',
-                                        params: { id: review.bookId, reviewId: review.id },
-                                    })
-                                }
-                            >
-                                <View
+                        recentReviews.map((review) => {
+                            const bookTitle =
+                                booksById[review.bookId]?.title ?? 'Livro';
+
+                            return (
+                                <TouchableOpacity
+                                    key={review.id}
+                                    activeOpacity={0.9}
                                     style={{
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        marginBottom: 4,
+                                        paddingVertical: 12,
+                                        paddingHorizontal: 12,
+                                        borderRadius: 16,
+                                        marginBottom: 10,
+                                        backgroundColor: theme.colors.card,
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.border,
                                     }}
+                                    onPress={() =>
+                                        router.push({
+                                            pathname: '/review/comments',
+                                            params: { id: review.bookId, reviewId: review.id },
+                                        })
+                                    }
                                 >
-                                    <Ionicons
-                                        name="person-circle-outline"
-                                        size={20}
-                                        color={theme.colors.muted}
-                                        style={{ marginRight: 6 }}
-                                    />
+                                    <View
+                                        style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            marginBottom: 4,
+                                        }}
+                                    >
+                                        <Ionicons
+                                            name="person-circle-outline"
+                                            size={20}
+                                            color={theme.colors.muted}
+                                            style={{ marginRight: 6 }}
+                                        />
+                                        <Text
+                                            style={{
+                                                fontSize: 13,
+                                                fontWeight: '700',
+                                                color: theme.colors.text,
+                                            }}
+                                            numberOfLines={1}
+                                        >
+                                            {review.userName}
+                                        </Text>
+                                        <Text
+                                            style={{
+                                                marginLeft: 6,
+                                                fontSize: 12,
+                                                color: theme.colors.muted,
+                                            }}
+                                        >
+                                            {formatRelativeTime(review.createdAt)}
+                                        </Text>
+                                    </View>
+
                                     <Text
                                         style={{
                                             fontSize: 13,
-                                            fontWeight: '700',
-                                            color: theme.colors.text,
-                                        }}
-                                        numberOfLines={1}
-                                    >
-                                        {review.userName}
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            marginLeft: 6,
-                                            fontSize: 12,
-                                            color: theme.colors.muted,
-                                        }}
-                                    >
-                                        {formatRelativeTime(review.createdAt)}
-                                    </Text>
-                                </View>
-
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: '600',
-                                        color: theme.colors.text,
-                                        marginBottom: 2,
-                                    }}
-                                    numberOfLines={1}
-                                >
-                                    ⭐ {review.rating.toFixed(1)} • Review de {review.bookId}
-                                </Text>
-
-                                {review.title ? (
-                                    <Text
-                                        style={{
-                                            fontSize: 13,
+                                            fontWeight: '600',
                                             color: theme.colors.text,
                                             marginBottom: 2,
                                         }}
                                         numberOfLines={1}
                                     >
-                                        {review.title}
+                                        ⭐ {review.rating.toFixed(1)} • Review de {bookTitle}
                                     </Text>
-                                ) : null}
 
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        color: theme.colors.muted,
-                                    }}
-                                    numberOfLines={2}
-                                >
-                                    {review.body}
-                                </Text>
-                            </TouchableOpacity>
-                        ))
+                                    {review.title ? (
+                                        <Text
+                                            style={{
+                                                fontSize: 13,
+                                                color: theme.colors.text,
+                                                marginBottom: 2,
+                                            }}
+                                            numberOfLines={1}
+                                        >
+                                            {review.title}
+                                        </Text>
+                                    ) : null}
+
+                                    <Text
+                                        style={{
+                                            fontSize: 13,
+                                            color: theme.colors.muted,
+                                        }}
+                                        numberOfLines={2}
+                                    >
+                                        {review.text}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })
                     )}
                 </View>
             </ScrollView>

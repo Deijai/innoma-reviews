@@ -1,6 +1,6 @@
-// app/(auth)/sign-up.tsx
+// app/(auth)/sign-in.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     KeyboardAvoidingView,
@@ -16,34 +16,33 @@ import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../stores/authStore';
 
-export default function SignUpScreen() {
+export default function SignInScreen() {
     const { theme } = useTheme();
     const router = useRouter();
-    const { signIn } = useAuthStore(); // vamos usar só pra social login mock
+    const { signIn } = useAuthStore();
 
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
+    // Recebe e-mail vindo da criação de conta (sign-up)
+    const { emailPrefill } = useLocalSearchParams<{ emailPrefill?: string }>();
+
+    const [email, setEmail] = useState(emailPrefill || '');
     const [password, setPassword] = useState('');
-    const [confirm, setConfirm] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const canSubmit =
-        !!name.trim() &&
-        !!email.trim() &&
-        !!password &&
-        password === confirm;
+    const canSubmit = !!email.trim() && !!password;
 
-    async function handleSignUp() {
+    async function handleSignIn() {
         if (!canSubmit) return;
 
         setLoading(true);
-        // FASE MOCK: não cria usuário de verdade ainda
+
+        // MOCK: sem Firebase ainda
+        await new Promise((r) => setTimeout(r, 600));
+
+        await signIn(email, password);
+
         setLoading(false);
 
-        router.replace({
-            pathname: '/(auth)/sign-in',
-            params: { emailPrefill: email },
-        });
+        router.replace('/(app)/home');
     }
 
     return (
@@ -95,40 +94,11 @@ export default function SignUpScreen() {
                                 color: theme.colors.text,
                             }}
                         >
-                            Criar conta
+                            Entrar
                         </Text>
                     </View>
 
-                    {/* Campos */}
-                    <View style={{ marginBottom: 12 }}>
-                        <Text
-                            style={{
-                                fontSize: 13,
-                                fontWeight: '600',
-                                color: theme.colors.text,
-                                marginBottom: 6,
-                            }}
-                        >
-                            Nome
-                        </Text>
-                        <TextInput
-                            value={name}
-                            onChangeText={setName}
-                            placeholder="Como gostaria de ser chamado(a)?"
-                            placeholderTextColor={theme.colors.muted}
-                            style={{
-                                borderRadius: 12,
-                                paddingHorizontal: 12,
-                                paddingVertical: 10,
-                                backgroundColor: theme.colors.card,
-                                borderWidth: 1,
-                                borderColor: theme.colors.border,
-                                fontSize: 14,
-                                color: theme.colors.text,
-                            }}
-                        />
-                    </View>
-
+                    {/* Email */}
                     <View style={{ marginBottom: 12 }}>
                         <Text
                             style={{
@@ -143,8 +113,8 @@ export default function SignUpScreen() {
                         <TextInput
                             value={email}
                             onChangeText={setEmail}
-                            keyboardType="email-address"
                             autoCapitalize="none"
+                            keyboardType="email-address"
                             placeholder="seu@email.com"
                             placeholderTextColor={theme.colors.muted}
                             style={{
@@ -160,7 +130,8 @@ export default function SignUpScreen() {
                         />
                     </View>
 
-                    <View style={{ marginBottom: 12 }}>
+                    {/* Password */}
+                    <View style={{ marginBottom: 16 }}>
                         <Text
                             style={{
                                 fontSize: 13,
@@ -175,7 +146,7 @@ export default function SignUpScreen() {
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
-                            placeholder="Crie uma senha"
+                            placeholder="Digite sua senha"
                             placeholderTextColor={theme.colors.muted}
                             style={{
                                 borderRadius: 12,
@@ -188,52 +159,11 @@ export default function SignUpScreen() {
                                 color: theme.colors.text,
                             }}
                         />
-                    </View>
-
-                    <View style={{ marginBottom: 20 }}>
-                        <Text
-                            style={{
-                                fontSize: 13,
-                                fontWeight: '600',
-                                color: theme.colors.text,
-                                marginBottom: 6,
-                            }}
-                        >
-                            Confirmar senha
-                        </Text>
-                        <TextInput
-                            value={confirm}
-                            onChangeText={setConfirm}
-                            secureTextEntry
-                            placeholder="Digite novamente a senha"
-                            placeholderTextColor={theme.colors.muted}
-                            style={{
-                                borderRadius: 12,
-                                paddingHorizontal: 12,
-                                paddingVertical: 10,
-                                backgroundColor: theme.colors.card,
-                                borderWidth: 1,
-                                borderColor: theme.colors.border,
-                                fontSize: 14,
-                                color: theme.colors.text,
-                            }}
-                        />
-                        {password && confirm && password !== confirm && (
-                            <Text
-                                style={{
-                                    marginTop: 4,
-                                    fontSize: 12,
-                                    color: '#DC2626',
-                                }}
-                            >
-                                As senhas não coincidem.
-                            </Text>
-                        )}
                     </View>
 
                     <PrimaryButton
-                        title="Criar conta"
-                        onPress={handleSignUp}
+                        title="Entrar"
+                        onPress={handleSignIn}
                         loading={loading}
                         disabled={!canSubmit || loading}
                     />
@@ -266,8 +196,8 @@ export default function SignUpScreen() {
                     {/* GOOGLE BUTTON (mock) */}
                     <TouchableOpacity
                         onPress={async () => {
-                            // MOCK SOCIAL SIGN-UP → já loga o usuário
-                            await signIn('google.user@example.com', 'social-google');
+                            // MOCK SOCIAL LOGIN: por enquanto usa o mesmo signIn
+                            await signIn(email, password);
                             router.replace('/(app)/home');
                         }}
                         style={{
@@ -302,8 +232,8 @@ export default function SignUpScreen() {
                     {/* APPLE BUTTON (mock) */}
                     <TouchableOpacity
                         onPress={async () => {
-                            // MOCK SOCIAL SIGN-UP → já loga o usuário
-                            await signIn('apple.user@example.com', 'social-apple');
+                            // MOCK SOCIAL LOGIN também
+                            await signIn(email, password);
                             router.replace('/(app)/home');
                         }}
                         style={{
@@ -333,24 +263,17 @@ export default function SignUpScreen() {
                         </Text>
                     </TouchableOpacity>
 
-                    {/* Já tem conta? */}
+                    {/* Forgot + Criar conta */}
                     <View
                         style={{
                             marginTop: 16,
                             flexDirection: 'row',
-                            justifyContent: 'center',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
                         }}
                     >
-                        <Text
-                            style={{
-                                fontSize: 13,
-                                color: theme.colors.muted,
-                            }}
-                        >
-                            Já tem uma conta?{' '}
-                        </Text>
                         <TouchableOpacity
-                            onPress={() => router.replace('/(auth)/sign-in')}
+                            onPress={() => router.push('/(auth)/forgot-password')}
                         >
                             <Text
                                 style={{
@@ -359,7 +282,28 @@ export default function SignUpScreen() {
                                     color: theme.colors.primary,
                                 }}
                             >
-                                Fazer login
+                                Esqueci minha senha
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => router.push('/(auth)/sign-up')}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 13,
+                                    color: theme.colors.muted,
+                                }}
+                            >
+                                Não tem conta?{' '}
+                                <Text
+                                    style={{
+                                        fontWeight: '600',
+                                        color: theme.colors.primary,
+                                    }}
+                                >
+                                    Criar
+                                </Text>
                             </Text>
                         </TouchableOpacity>
                     </View>

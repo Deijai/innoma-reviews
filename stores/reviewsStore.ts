@@ -2,114 +2,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-
-export type Review = {
-    id: string;
-    bookId: string;
-    userName: string;
-    rating: number;
-    title: string;
-    body: string;
-    hasSpoilers: boolean;
-    createdAt: number;
-    comments: Comment[];
-};
-
-export type Comment = {
-    id: string;
-    reviewId: string;
-    bookId: string;
-    userName: string;
-    text: string;
-    createdAt: number;
-    parentCommentId?: string | null; // 👈 suporte a respostas
-};
+import { REVIEWS } from '../mocks/reviews';
+import type { Review } from '../types/review';
 
 type ReviewsState = {
     reviews: Review[];
-    addReview: (input: {
-        bookId: string;
-        userName: string;
-        rating: number;
-        title: string;
-        body: string;
-        hasSpoilers: boolean;
-    }) => string;
-    addComment: (input: {
-        reviewId: string;
-        bookId: string;
-        userName: string;
-        text: string;
-        parentCommentId?: string | null;
-    }) => void;
-    resetReviews: () => void;
+
+    setReviews: (reviews: Review[]) => void;
+    addReview: (review: Review) => void;
 };
 
 export const useReviewsStore = create<ReviewsState>()(
     persist(
         (set, get) => ({
-            reviews: [],
+            reviews: REVIEWS,
 
-            addReview: ({ bookId, userName, rating, title, body, hasSpoilers }) => {
-                const id = String(Date.now());
-                const createdAt = Date.now();
-
-                const newReview: Review = {
-                    id,
-                    bookId,
-                    userName,
-                    rating,
-                    title: title.trim(),
-                    body: body.trim(),
-                    hasSpoilers,
-                    createdAt,
-                    comments: [],
-                };
-
-                set((state) => ({
-                    reviews: [newReview, ...state.reviews],
-                }));
-
-                return id;
+            setReviews(reviews) {
+                set({ reviews });
             },
 
-            addComment: ({
-                reviewId,
-                bookId,
-                userName,
-                text,
-                parentCommentId = null,
-            }) => {
-                const id = String(Date.now());
-                const createdAt = Date.now();
-
-                const newComment: Comment = {
-                    id,
-                    reviewId,
-                    bookId,
-                    userName,
-                    text: text.trim(),
-                    createdAt,
-                    parentCommentId,
-                };
-
-                set((state) => ({
-                    reviews: state.reviews.map((r) =>
-                        r.id === reviewId
-                            ? {
-                                ...r,
-                                comments: [newComment, ...r.comments],
-                            }
-                            : r
-                    ),
-                }));
+            addReview(review) {
+                const current = get().reviews;
+                set({ reviews: [review, ...current] });
             },
-
-            resetReviews: () => set({ reviews: [] }),
         }),
         {
             name: 'lumina-reviews',
             storage: createJSONStorage(() => AsyncStorage),
-        }
-    )
+        },
+    ),
 );
