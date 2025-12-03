@@ -1,7 +1,7 @@
 // app/review/write.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     KeyboardAvoidingView,
     Platform,
@@ -15,23 +15,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { StarRatingInput } from '../../components/ui/StarRatingInput';
+import { BOOKS } from '../../constants/mockData';
 import { useTheme } from '../../hooks/useTheme';
 import { createReview } from '../../services/reviewsService';
-import { useBooksStore } from '../../stores/booksStore';
 
 export default function WriteReviewScreen() {
     const { theme } = useTheme();
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
 
-    // 🔹 Agora pegamos o livro do store (que já está centralizado)
-    const book = useBooksStore((s) =>
-        s.books.find((b) => b.id === id)
-    );
+    const book = useMemo(() => BOOKS.find((b) => b.id === id), [id]);
 
     const [rating, setRating] = useState(4);
     const [title, setTitle] = useState('');
-    const [text, setText] = useState(''); // 👈 era body
+    const [body, setBody] = useState('');
     const [spoilers, setSpoilers] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -41,24 +38,22 @@ export default function WriteReviewScreen() {
 
     async function handlePublish() {
         if (!book) return;
-        if (!text.trim()) return; // simples validação
+        if (!body.trim()) return; // validação simples
 
         setLoading(true);
 
-        // 🔹 Usa o service, que já respeita o tipo Review (text / containsSpoilers)
         const review = await createReview({
             bookId: book.id,
-            userId: 'mock-user',      // futuro: pegar do authStore
-            userName: 'Você',         // mock – depois ligamos no usuário real
+            userId: 'mock-user',      // depois ligamos com auth real
+            userName: 'Você',
             rating,
             title,
-            text,                     // 👈 aqui vai como text
+            text: body,
             containsSpoilers: spoilers,
         });
 
         setLoading(false);
 
-        // Redireciona para tela de sucesso com o id da review criada
         router.replace({
             pathname: '/review/success',
             params: { id: book.id, reviewId: review.id },
@@ -212,7 +207,7 @@ export default function WriteReviewScreen() {
                         />
                     </View>
 
-                    {/* Corpo / texto */}
+                    {/* Corpo */}
                     <View style={{ marginBottom: 16 }}>
                         <Text
                             style={{
@@ -225,8 +220,8 @@ export default function WriteReviewScreen() {
                             Review
                         </Text>
                         <TextInput
-                            value={text}
-                            onChangeText={setText}
+                            value={body}
+                            onChangeText={setBody}
                             multiline
                             numberOfLines={6}
                             placeholder="Compartilhe sua opinião, pontos fortes, fracos, como o livro impactou você..."
@@ -290,7 +285,6 @@ export default function WriteReviewScreen() {
                         title="Publicar review"
                         onPress={handlePublish}
                         loading={loading}
-                        disabled={loading || !text.trim() || !book}
                     />
                 </ScrollView>
             </KeyboardAvoidingView>

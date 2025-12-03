@@ -1,3 +1,4 @@
+// src/services/reviewsService.ts
 import { REVIEWS } from '../mocks/reviews';
 import { useReviewsStore } from '../stores/reviewsStore';
 import type { Review } from '../types/review';
@@ -7,9 +8,17 @@ let loadedMocks = false;
 function ensureReviewsLoaded() {
     const state = useReviewsStore.getState();
     if (!loadedMocks && (!state.reviews || state.reviews.length === 0)) {
-        state.setReviews?.(REVIEWS);
+        state.setReviews(REVIEWS as Review[]);
         loadedMocks = true;
     }
+}
+
+/**
+ * Todas as reviews (para tela de feed / perfil).
+ */
+export async function fetchAllReviews(): Promise<Review[]> {
+    ensureReviewsLoaded();
+    return useReviewsStore.getState().reviews;
 }
 
 /**
@@ -33,16 +42,7 @@ export async function fetchReviewById(
 }
 
 /**
- * 🔹 NOVO: retorna TODAS as reviews (para perfil, estatísticas, etc.)
- */
-export async function fetchAllReviews(): Promise<Review[]> {
-    ensureReviewsLoaded();
-    const state = useReviewsStore.getState();
-    return state.reviews;
-}
-
-/**
- * Reviews recentes (pro feed da Home).
+ * Reviews recentes (para feed da Home).
  */
 export async function fetchRecentReviews(limit = 5): Promise<Review[]> {
     ensureReviewsLoaded();
@@ -65,6 +65,7 @@ type CreateReviewInput = {
 
 /**
  * Cria uma nova review (mock).
+ * No futuro: trocar implementação por Firestore.
  */
 export async function createReview(
     input: CreateReviewInput
@@ -87,7 +88,7 @@ export async function createReview(
         createdAt: Date.now(),
     };
 
-    state.addReview?.(newReview);
+    state.addReview(newReview);
 
     // futuro: salvar no Firestore
     return newReview;

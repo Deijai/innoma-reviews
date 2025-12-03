@@ -13,10 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
-import {
-    useReviewsStore,
-    type Comment as CommentType,
-} from '../../stores/reviewsStore';
+import { useReviewsStore } from '../../stores/reviewsStore';
+import type { Comment as CommentType } from '../../types/comment';
 
 export default function CommentsScreen() {
     const { theme } = useTheme();
@@ -30,7 +28,7 @@ export default function CommentsScreen() {
     const [replyTo, setReplyTo] = useState<CommentType | null>(null);
 
     const reviews = useReviewsStore((s) => s.reviews);
-    const comments = useReviewsStore((s) => s.comments);
+    const commentsState = useReviewsStore((s) => s.comments);
     const addComment = useReviewsStore((s) => s.addComment);
 
     const review = useMemo(() => {
@@ -43,17 +41,16 @@ export default function CommentsScreen() {
         return undefined;
     }, [reviews, id, reviewId]);
 
-    // 🔹 Comentários apenas desta review
-    const reviewComments = useMemo(() => {
+    const comments: CommentType[] = useMemo(() => {
         if (!review) return [];
-        return comments.filter((c) => c.reviewId === review.id);
-    }, [comments, review]);
+        return commentsState.filter((c) => c.reviewId === review.id);
+    }, [commentsState, review]);
 
-    const topLevelComments = reviewComments.filter((c) => !c.parentCommentId);
+    const topLevelComments = comments.filter((c) => !c.parentCommentId);
 
     const childrenByParent = useMemo(() => {
         const map = new Map<string, CommentType[]>();
-        reviewComments.forEach((c) => {
+        comments.forEach((c) => {
             if (c.parentCommentId) {
                 if (!map.has(c.parentCommentId)) {
                     map.set(c.parentCommentId, []);
@@ -62,19 +59,19 @@ export default function CommentsScreen() {
             }
         });
         return map;
-    }, [reviewComments]);
+    }, [comments]);
 
     function handleBack() {
         router.back();
     }
 
     function handleSend() {
-        if (!review || !id) return;
+        if (!review) return;
         if (!text.trim()) return;
 
         addComment({
             reviewId: review.id,
-            bookId: id.toString(),
+            bookId: (id ?? review.bookId).toString(),
             userName: 'Você',
             text,
             parentCommentId: replyTo?.id ?? null,
@@ -203,11 +200,7 @@ export default function CommentsScreen() {
                             marginRight: 8,
                         }}
                     >
-                        <Ionicons
-                            name="chevron-down"
-                            size={18}
-                            color={theme.colors.text}
-                        />
+                        <Ionicons name="chevron-down" size={18} color={theme.colors.text} />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>
                         <Text
@@ -311,9 +304,7 @@ export default function CommentsScreen() {
                                 numberOfLines={1}
                             >
                                 Respondendo a{' '}
-                                <Text
-                                    style={{ fontWeight: '600', color: theme.colors.text }}
-                                >
+                                <Text style={{ fontWeight: '600', color: theme.colors.text }}>
                                     {replyTo.userName}
                                 </Text>
                             </Text>
@@ -343,9 +334,7 @@ export default function CommentsScreen() {
                             value={text}
                             onChangeText={setText}
                             placeholder={
-                                replyTo
-                                    ? 'Responder comentário...'
-                                    : 'Adicionar comentário...'
+                                replyTo ? 'Responder comentário...' : 'Adicionar comentário...'
                             }
                             placeholderTextColor={theme.colors.muted}
                             style={{
