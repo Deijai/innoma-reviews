@@ -1,8 +1,10 @@
 // app/book/[id].tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
     Dimensions,
     Image,
     ImageBackground,
@@ -16,7 +18,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import type { BookStatus } from '../../constants/mockData';
 import { useTheme } from '../../hooks/useTheme';
-import { useBooksStore } from '../../stores/booksStore';
+import {
+    addBookToShelf,
+    fetchBookById,
+    updateBookStatus
+} from '../../services/booksService';
+import type { Book } from '../../types/book';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,10 +45,106 @@ export default function BookDetailScreen() {
     const { theme } = useTheme();
     const router = useRouter();
 
-    const book = useBooksStore((s) =>
-        s.books.find((b) => b.id === id),
-    );
-    const setStatus = useBooksStore((s) => s.updateStatus);
+    const [book, setBook] = useState<Book | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+
+    // Busca o livro (no store ou na API)
+    useEffect(() => {
+        let isMounted = true;
+
+        async function load() {
+            if (!id) return;
+
+            try {
+                setLoading(true);
+                const foundBook = await fetchBookById(id);
+                if (isMounted) {
+                    setBook(foundBook || null);
+                }
+            } catch (error) {
+                console.log('Erro ao buscar livro:', error);
+                if (isMounted) {
+                    setBook(null);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        load();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
+
+    async function handleToggleShelf() {
+        if (!book || updatingStatus) return;
+
+        const currentStatus = book.status as BookStatus | undefined;
+        const next = getNextStatus(currentStatus);
+
+        try {
+            setUpdatingStatus(true);
+
+            // Se o livro não está na estante ainda (status null/undefined)
+            if (!currentStatus) {
+                await addBookToShelf(book, next);
+            } else {
+                // Atualiza o status no Firestore
+                await updateBookStatus(book.id, next);
+            }
+
+            // Atualiza o estado local para feedback imediato
+            setBook({ ...book, status: next });
+
+            // Feedback visual
+            Alert.alert(
+                'Estante atualizada!',
+                `"${book.title}" agora está em: ${STATUS_LABEL[next]}`,
+                [{ text: 'OK' }]
+            );
+        } catch (error) {
+            console.log('Erro ao atualizar estante:', error);
+            Alert.alert(
+                'Erro',
+                'Não foi possível atualizar a estante. Tente novamente.',
+                [{ text: 'OK' }]
+            );
+        } finally {
+            setUpdatingStatus(false);
+        }
+    }
+
+    if (loading) {
+        return (
+            <SafeAreaView
+                style={{ flex: 1, backgroundColor: theme.colors.background }}
+            >
+                <View
+                    style={{
+                        flex: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                    <Text
+                        style={{
+                            marginTop: 12,
+                            fontSize: 14,
+                            color: theme.colors.muted,
+                        }}
+                    >
+                        Carregando livro...
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     if (!book) {
         return (
@@ -56,6 +159,12 @@ export default function BookDetailScreen() {
                         paddingHorizontal: 24,
                     }}
                 >
+                    <Ionicons
+                        name="alert-circle-outline"
+                        size={64}
+                        color={theme.colors.muted}
+                        style={{ marginBottom: 16 }}
+                    />
                     <Text
                         style={{
                             fontSize: 18,
@@ -74,8 +183,7 @@ export default function BookDetailScreen() {
                             marginBottom: 16,
                         }}
                     >
-                        Talvez esse título ainda não esteja sincronizado na sua
-                        biblioteca.
+                        Não foi possível encontrar este livro. Tente buscar novamente.
                     </Text>
                     <PrimaryButton
                         title="Voltar"
@@ -92,13 +200,11 @@ export default function BookDetailScreen() {
 
     const shelfLabel = STATUS_LABEL[book.status as BookStatus];
 
-    function handleToggleShelf() {
-        const next = getNextStatus(book!.status as BookStatus | undefined);
-        setStatus(book!.id, next);
-    }
-
-    const shelfButtonLabel =
-        book.status == null ? 'Adicionar à estante' : 'Alterar estante';
+    const shelfButtonLabel = !book.status
+        ? 'Adicionar à estante'
+        : updatingStatus
+            ? 'Atualizando...'
+            : 'Alterar estante';
 
     return (
         <SafeAreaView
@@ -208,81 +314,9 @@ export default function BookDetailScreen() {
                                         height: '100%',
                                     }}
                                     resizeMode="cover"
-                                //blurRadius={12}
                                 />
                             </View>
                         )}
-
-                        {/* Frente do "livro" – card original intacto */}
-                        {/* <View
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                borderRadius: 22,
-                                padding: 16,
-                                justifyContent: 'space-between',
-                                backgroundColor: theme.colors.card,
-                                borderWidth: 1,
-                                borderColor: theme.colors.border,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    fontSize: 16,
-                                    fontWeight: '800',
-                                    color: theme.colors.text,
-                                }}
-                                numberOfLines={4}
-                            >
-                                {book.title}
-                            </Text>
-                            <Text
-                                style={{
-                                    fontSize: 13,
-                                    color: theme.colors.muted,
-                                    marginTop: 8,
-                                }}
-                            >
-                                {book.author}
-                            </Text>
-                            {progress !== undefined && (
-                                <View style={{ marginTop: 10 }}>
-                                    <View
-                                        style={{
-                                            height: 5,
-                                            borderRadius: 999,
-                                            backgroundColor:
-                                                theme.colors.border,
-                                        }}
-                                    >
-                                        <View
-                                            style={{
-                                                height: 5,
-                                                borderRadius: 999,
-                                                width: `${Math.round(
-                                                    progress * 100,
-                                                )}%`,
-                                                backgroundColor:
-                                                    theme.colors.primary,
-                                            }}
-                                        />
-                                    </View>
-                                    <Text
-                                        style={{
-                                            marginTop: 4,
-                                            fontSize: 11,
-                                            color: theme.colors.muted,
-                                        }}
-                                    >
-                                        {book.currentPage} / {book.pages}{' '}
-                                        páginas
-                                    </Text>
-                                </View>
-                            )}
-                        </View> */}
                     </View>
                 </ImageBackground>
 
@@ -377,6 +411,8 @@ export default function BookDetailScreen() {
                         <PrimaryButton
                             title={shelfButtonLabel}
                             onPress={handleToggleShelf}
+                            disabled={updatingStatus}
+                            loading={updatingStatus}
                         />
 
                         <View style={{ flexDirection: 'row', gap: 10 }}>

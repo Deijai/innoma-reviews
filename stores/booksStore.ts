@@ -2,7 +2,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { BOOKS } from '../mocks/books';
 import type { Book, BookStatus } from '../types/book';
 
 type BooksState = {
@@ -16,11 +15,11 @@ type BooksState = {
 export const useBooksStore = create<BooksState>()(
     persist(
         (set, get) => ({
-            // começa com mocks (mas o persist vai sobrescrever depois)
-            books: BOOKS,
+            // ✅ Começa vazio - livros vêm do Firestore
+            books: [],
 
             /**
-             * Atualiza a lista de livros vinda da API,
+             * Atualiza a lista de livros vinda do Firestore,
              * preservando status e currentPage já salvos localmente.
              */
             setBooks(books) {

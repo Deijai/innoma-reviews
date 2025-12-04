@@ -1,5 +1,4 @@
 // services/booksService.ts
-import { BOOKS } from '../mocks/books';
 import { useBooksStore } from '../stores/booksStore';
 import type { Book, BookStatus } from '../types/book';
 import {
@@ -32,7 +31,7 @@ export async function fetchAllBooks(): Promise<Book[]> {
 }
 
 /**
- * Busca livros para descoberta (não salva no store do usuário)
+ * Busca livros para descoberta da API (não salva no store do usuário)
  */
 export async function fetchDiscoveryBooks(): Promise<Book[]> {
     try {
@@ -40,7 +39,8 @@ export async function fetchDiscoveryBooks(): Promise<Book[]> {
         return mapIsbnDbBooksToBooks(apiBooks);
     } catch (error) {
         console.log('Erro ao buscar livros de descoberta:', error);
-        return BOOKS; // Fallback para mocks
+        // ❌ REMOVER: return BOOKS; // Fallback para mocks
+        return []; // ✅ Retorna vazio se a API falhar
     }
 }
 

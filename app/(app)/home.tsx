@@ -70,7 +70,7 @@ export default function HomeScreen() {
         async function load() {
             try {
                 setLoadingReviews(true);
-                await fetchRecentReviews(10); // Busca as 10 mais recentes
+                await fetchRecentReviews(10);
             } catch (error) {
                 console.log('Erro ao carregar reviews na Home:', error);
             } finally {
@@ -187,8 +187,56 @@ export default function HomeScreen() {
                     </View>
                 )}
 
+                {/* Mensagem quando não há livros */}
+                {!loadingBooks && books.length === 0 && (
+                    <View
+                        style={{
+                            marginBottom: 24,
+                            padding: 20,
+                            borderRadius: 20,
+                            backgroundColor: theme.colors.card,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                            alignItems: 'center',
+                        }}
+                    >
+                        <Ionicons
+                            name="book-outline"
+                            size={48}
+                            color={theme.colors.muted}
+                            style={{ marginBottom: 12 }}
+                        />
+                        <Text
+                            style={{
+                                fontSize: 16,
+                                fontWeight: '700',
+                                color: theme.colors.text,
+                                marginBottom: 6,
+                                textAlign: 'center',
+                            }}
+                        >
+                            Sua estante está vazia
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 14,
+                                color: theme.colors.muted,
+                                marginBottom: 16,
+                                textAlign: 'center',
+                            }}
+                        >
+                            Comece adicionando livros que você quer ler ou já está lendo
+                        </Text>
+                        <PrimaryButton
+                            title="Descobrir livros"
+                            onPress={() => router.push('/(app)/discovery')}
+                            style={{ paddingHorizontal: 24 }}
+                        />
+                    </View>
+                )}
+
                 {/* Bloco: Lendo agora - Scroll Horizontal */}
-                {readingBooks.length > 0 && (
+                {!loadingBooks && readingBooks.length > 0 && (
                     <View style={{ marginBottom: 24 }}>
                         <View
                             style={{
@@ -400,7 +448,7 @@ export default function HomeScreen() {
                 )}
 
                 {/* Bloco: Recomendados */}
-                {recommended.length > 0 && (
+                {!loadingBooks && recommended.length > 0 && (
                     <View style={{ marginBottom: 24 }}>
                         <View
                             style={{
@@ -465,217 +513,221 @@ export default function HomeScreen() {
                 )}
 
                 {/* Bloco: Atividade da comunidade */}
-                <View>
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: 8,
-                        }}
-                    >
-                        <Text
-                            style={{
-                                fontSize: 18,
-                                fontWeight: '700',
-                                color: theme.colors.text,
-                            }}
-                        >
-                            Atividade da comunidade
-                        </Text>
+                {!loadingBooks && (
+                    <View>
                         <View
                             style={{
                                 flexDirection: 'row',
+                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                gap: 4,
-                            }}
-                        >
-                            <Ionicons
-                                name="people-outline"
-                                size={16}
-                                color={theme.colors.muted}
-                            />
-                            <Text
-                                style={{
-                                    fontSize: 12,
-                                    color: theme.colors.muted,
-                                }}
-                            >
-                                Reviews recentes
-                            </Text>
-                        </View>
-                    </View>
-
-                    {loadingReviews ? (
-                        <View
-                            style={{
-                                padding: 14,
-                                borderRadius: 16,
-                                backgroundColor: theme.colors.card,
-                                borderWidth: 1,
-                                borderColor: theme.colors.border,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: 10,
-                            }}
-                        >
-                            <ActivityIndicator
-                                size="small"
-                                color={theme.colors.primary}
-                            />
-                            <Text
-                                style={{
-                                    fontSize: 13,
-                                    color: theme.colors.muted,
-                                }}
-                            >
-                                Carregando reviews...
-                            </Text>
-                        </View>
-                    ) : recentReviews.length === 0 ? (
-                        <View
-                            style={{
-                                padding: 14,
-                                borderRadius: 16,
-                                backgroundColor: theme.colors.card,
-                                borderWidth: 1,
-                                borderColor: theme.colors.border,
+                                marginBottom: 8,
                             }}
                         >
                             <Text
                                 style={{
-                                    fontSize: 14,
-                                    fontWeight: '600',
+                                    fontSize: 18,
+                                    fontWeight: '700',
                                     color: theme.colors.text,
-                                    marginBottom: 4,
                                 }}
                             >
-                                Ainda sem atividade
+                                Atividade da comunidade
                             </Text>
-                            <Text
+                            <View
                                 style={{
-                                    fontSize: 13,
-                                    color: theme.colors.muted,
-                                    marginBottom: 8,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 4,
                                 }}
                             >
-                                Publique a sua primeira review para começar a
-                                movimentar o feed.
-                            </Text>
-                            <PrimaryButton
-                                title="Escrever uma review"
-                                onPress={() => {
-                                    if (readingBooks[0]) {
-                                        router.push({
-                                            pathname: '/review/write',
-                                            params: { id: readingBooks[0].id },
-                                        });
-                                    } else if (books[0]) {
-                                        router.push({
-                                            pathname: '/review/write',
-                                            params: { id: books[0].id },
-                                        });
-                                    }
-                                }}
-                            />
+                                <Ionicons
+                                    name="people-outline"
+                                    size={16}
+                                    color={theme.colors.muted}
+                                />
+                                <Text
+                                    style={{
+                                        fontSize: 12,
+                                        color: theme.colors.muted,
+                                    }}
+                                >
+                                    Reviews recentes
+                                </Text>
+                            </View>
                         </View>
-                    ) : (
-                        recentReviews.map((review) => (
-                            <TouchableOpacity
-                                key={review.id}
-                                activeOpacity={0.9}
+
+                        {loadingReviews ? (
+                            <View
                                 style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 12,
+                                    padding: 14,
                                     borderRadius: 16,
-                                    marginBottom: 10,
                                     backgroundColor: theme.colors.card,
                                     borderWidth: 1,
                                     borderColor: theme.colors.border,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 10,
                                 }}
-                                onPress={() =>
-                                    router.push({
-                                        pathname: '/review/comments',
-                                        params: {
-                                            id: review.bookId,
-                                            reviewId: review.id,
-                                        },
-                                    })
-                                }
                             >
-                                <View
-                                    style={{
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        marginBottom: 4,
-                                    }}
-                                >
-                                    <Ionicons
-                                        name="person-circle-outline"
-                                        size={20}
-                                        color={theme.colors.muted}
-                                        style={{ marginRight: 6 }}
-                                    />
-                                    <Text
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: '700',
-                                            color: theme.colors.text,
-                                        }}
-                                        numberOfLines={1}
-                                    >
-                                        {review.userName}
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            marginLeft: 6,
-                                            fontSize: 12,
-                                            color: theme.colors.muted,
-                                        }}
-                                    >
-                                        {formatRelativeTime(review.createdAt)}
-                                    </Text>
-                                </View>
-
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: '600',
-                                        color: theme.colors.text,
-                                        marginBottom: 2,
-                                    }}
-                                    numberOfLines={1}
-                                >
-                                    ⭐ {review.rating.toFixed(1)} • Review de{' '}
-                                    {review.bookId}
-                                </Text>
-
-                                {review.title ? (
-                                    <Text
-                                        style={{
-                                            fontSize: 13,
-                                            color: theme.colors.text,
-                                            marginBottom: 2,
-                                        }}
-                                        numberOfLines={1}
-                                    >
-                                        {review.title}
-                                    </Text>
-                                ) : null}
-
+                                <ActivityIndicator
+                                    size="small"
+                                    color={theme.colors.primary}
+                                />
                                 <Text
                                     style={{
                                         fontSize: 13,
                                         color: theme.colors.muted,
                                     }}
-                                    numberOfLines={2}
                                 >
-                                    {review.text}
+                                    Carregando reviews...
                                 </Text>
-                            </TouchableOpacity>
-                        ))
-                    )}
-                </View>
+                            </View>
+                        ) : recentReviews.length === 0 ? (
+                            <View
+                                style={{
+                                    padding: 14,
+                                    borderRadius: 16,
+                                    backgroundColor: theme.colors.card,
+                                    borderWidth: 1,
+                                    borderColor: theme.colors.border,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        fontSize: 14,
+                                        fontWeight: '600',
+                                        color: theme.colors.text,
+                                        marginBottom: 4,
+                                    }}
+                                >
+                                    Ainda sem atividade
+                                </Text>
+                                <Text
+                                    style={{
+                                        fontSize: 13,
+                                        color: theme.colors.muted,
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    Publique a sua primeira review para começar a
+                                    movimentar o feed.
+                                </Text>
+                                {books.length > 0 && (
+                                    <PrimaryButton
+                                        title="Escrever uma review"
+                                        onPress={() => {
+                                            if (readingBooks[0]) {
+                                                router.push({
+                                                    pathname: '/review/write',
+                                                    params: { id: readingBooks[0].id },
+                                                });
+                                            } else if (books[0]) {
+                                                router.push({
+                                                    pathname: '/review/write',
+                                                    params: { id: books[0].id },
+                                                });
+                                            }
+                                        }}
+                                    />
+                                )}
+                            </View>
+                        ) : (
+                            recentReviews.map((review) => (
+                                <TouchableOpacity
+                                    key={review.id}
+                                    activeOpacity={0.9}
+                                    style={{
+                                        paddingVertical: 12,
+                                        paddingHorizontal: 12,
+                                        borderRadius: 16,
+                                        marginBottom: 10,
+                                        backgroundColor: theme.colors.card,
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.border,
+                                    }}
+                                    onPress={() =>
+                                        router.push({
+                                            pathname: '/review/comments',
+                                            params: {
+                                                id: review.bookId,
+                                                reviewId: review.id,
+                                            },
+                                        })
+                                    }
+                                >
+                                    <View
+                                        style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            marginBottom: 4,
+                                        }}
+                                    >
+                                        <Ionicons
+                                            name="person-circle-outline"
+                                            size={20}
+                                            color={theme.colors.muted}
+                                            style={{ marginRight: 6 }}
+                                        />
+                                        <Text
+                                            style={{
+                                                fontSize: 13,
+                                                fontWeight: '700',
+                                                color: theme.colors.text,
+                                            }}
+                                            numberOfLines={1}
+                                        >
+                                            {review.userName}
+                                        </Text>
+                                        <Text
+                                            style={{
+                                                marginLeft: 6,
+                                                fontSize: 12,
+                                                color: theme.colors.muted,
+                                            }}
+                                        >
+                                            {formatRelativeTime(review.createdAt)}
+                                        </Text>
+                                    </View>
+
+                                    <Text
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: '600',
+                                            color: theme.colors.text,
+                                            marginBottom: 2,
+                                        }}
+                                        numberOfLines={1}
+                                    >
+                                        ⭐ {review.rating.toFixed(1)} • Review de{' '}
+                                        {review.bookId}
+                                    </Text>
+
+                                    {review.title ? (
+                                        <Text
+                                            style={{
+                                                fontSize: 13,
+                                                color: theme.colors.text,
+                                                marginBottom: 2,
+                                            }}
+                                            numberOfLines={1}
+                                        >
+                                            {review.title}
+                                        </Text>
+                                    ) : null}
+
+                                    <Text
+                                        style={{
+                                            fontSize: 13,
+                                            color: theme.colors.muted,
+                                        }}
+                                        numberOfLines={2}
+                                    >
+                                        {review.text}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))
+                        )}
+                    </View>
+                )}
             </ScrollView>
         </SafeAreaView>
     );

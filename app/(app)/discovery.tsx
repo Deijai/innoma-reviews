@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     ScrollView,
     Text,
     TouchableOpacity,
@@ -12,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { fetchAllBooks } from '../../services/booksService';
+import { addBookToShelf, fetchDiscoveryBooks } from '../../services/booksService';
 import type { Book } from '../../types/book';
 
 export default function DiscoveryScreen() {
@@ -21,6 +22,7 @@ export default function DiscoveryScreen() {
 
     const [trending, setTrending] = useState<Book[]>([]);
     const [loading, setLoading] = useState(false);
+    const [addingBook, setAddingBook] = useState<string | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -28,11 +30,11 @@ export default function DiscoveryScreen() {
         async function load() {
             try {
                 setLoading(true);
-                // Carrega livros "em alta" via service (hoje: top N do resultado padrão da API)
-                const all = await fetchAllBooks();
+                // ✅ CORRETO: Busca livros da API para descoberta
+                const discoveryBooks = await fetchDiscoveryBooks();
                 if (!isMounted) return;
 
-                setTrending(all.slice(0, 10));
+                setTrending(discoveryBooks.slice(0, 10));
             } catch (error) {
                 console.log('Erro ao carregar livros de descoberta:', error);
             } finally {
@@ -46,6 +48,19 @@ export default function DiscoveryScreen() {
             isMounted = false;
         };
     }, []);
+
+    async function handleAddBook(book: Book) {
+        try {
+            setAddingBook(book.id);
+            await addBookToShelf(book, 'want');
+            Alert.alert('Sucesso!', `"${book.title}" foi adicionado à sua estante.`);
+        } catch (error) {
+            console.log('Erro ao adicionar livro:', error);
+            Alert.alert('Erro', 'Não foi possível adicionar o livro. Tente novamente.');
+        } finally {
+            setAddingBook(null);
+        }
+    }
 
     return (
         <SafeAreaView
@@ -180,12 +195,8 @@ export default function DiscoveryScreen() {
                             }}
                         >
                             {trending.map((book) => (
-                                <TouchableOpacity
+                                <View
                                     key={book.id}
-                                    onPress={() =>
-                                        router.push(`/book/${book.id}`)
-                                    }
-                                    activeOpacity={0.9}
                                     style={{
                                         width: 140,
                                         borderRadius: 16,
@@ -195,45 +206,81 @@ export default function DiscoveryScreen() {
                                         padding: 10,
                                     }}
                                 >
-                                    <View
+                                    <TouchableOpacity
+                                        onPress={() =>
+                                            router.push(`/book/${book.id}`)
+                                        }
+                                        activeOpacity={0.9}
+                                    >
+                                        <View
+                                            style={{
+                                                width: '100%',
+                                                height: 140,
+                                                borderRadius: 10,
+                                                backgroundColor:
+                                                    theme.colors.background,
+                                                marginBottom: 8,
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <Ionicons
+                                                name="book-outline"
+                                                size={24}
+                                                color={theme.colors.muted}
+                                            />
+                                        </View>
+                                        <Text
+                                            style={{
+                                                fontSize: 13,
+                                                fontWeight: '600',
+                                                color: theme.colors.text,
+                                            }}
+                                            numberOfLines={2}
+                                        >
+                                            {book.title}
+                                        </Text>
+                                        <Text
+                                            style={{
+                                                fontSize: 11,
+                                                color: theme.colors.muted,
+                                                marginTop: 2,
+                                                marginBottom: 8,
+                                            }}
+                                            numberOfLines={1}
+                                        >
+                                            {book.author}
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    {/* Botão para adicionar à estante */}
+                                    <TouchableOpacity
+                                        onPress={() => handleAddBook(book)}
+                                        disabled={addingBook === book.id}
                                         style={{
-                                            width: '100%',
-                                            height: 140,
-                                            borderRadius: 10,
-                                            backgroundColor:
-                                                theme.colors.background,
-                                            marginBottom: 8,
+                                            paddingVertical: 6,
+                                            borderRadius: 8,
                                             alignItems: 'center',
-                                            justifyContent: 'center',
+                                            backgroundColor: addingBook === book.id
+                                                ? theme.colors.border
+                                                : theme.colors.primary,
                                         }}
                                     >
-                                        <Ionicons
-                                            name="book-outline"
-                                            size={24}
-                                            color={theme.colors.muted}
-                                        />
-                                    </View>
-                                    <Text
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: '600',
-                                            color: theme.colors.text,
-                                        }}
-                                        numberOfLines={2}
-                                    >
-                                        {book.title}
-                                    </Text>
-                                    <Text
-                                        style={{
-                                            fontSize: 11,
-                                            color: theme.colors.muted,
-                                            marginTop: 2,
-                                        }}
-                                        numberOfLines={1}
-                                    >
-                                        {book.author}
-                                    </Text>
-                                </TouchableOpacity>
+                                        {addingBook === book.id ? (
+                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                        ) : (
+                                            <Text
+                                                style={{
+                                                    fontSize: 11,
+                                                    fontWeight: '600',
+                                                    color: '#FFFFFF',
+                                                }}
+                                            >
+                                                Adicionar
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
                             ))}
                         </ScrollView>
                     )}
