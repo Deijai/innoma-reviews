@@ -16,11 +16,34 @@ type BooksState = {
 export const useBooksStore = create<BooksState>()(
     persist(
         (set, get) => ({
-            // começa com mocks
+            // começa com mocks (mas o persist vai sobrescrever depois)
             books: BOOKS,
 
+            /**
+             * Atualiza a lista de livros vinda da API,
+             * preservando status e currentPage já salvos localmente.
+             */
             setBooks(books) {
-                set({ books });
+                set((state) => {
+                    const existingMap = new Map<string, Book>(
+                        state.books.map((b) => [b.id, b]),
+                    );
+
+                    const merged = books.map((book) => {
+                        const existing = existingMap.get(book.id);
+                        if (!existing) {
+                            return book;
+                        }
+
+                        return {
+                            ...book,
+                            status: existing.status,
+                            currentPage: existing.currentPage,
+                        };
+                    });
+
+                    return { books: merged };
+                });
             },
 
             updateStatus(bookId, status) {
@@ -38,7 +61,9 @@ export const useBooksStore = create<BooksState>()(
                         ? {
                             ...book,
                             currentPage:
-                                currentPage > book.pages ? book.pages : Math.max(currentPage, 0),
+                                currentPage > book.pages
+                                    ? book.pages
+                                    : Math.max(currentPage, 0),
                         }
                         : book,
                 );

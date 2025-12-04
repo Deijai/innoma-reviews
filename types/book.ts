@@ -13,5 +13,8 @@ export interface Book {
     description: string;
     tags: string[];
     coverUrl?: string;
+    isbn?: string;
+    publisher?: string;
+    publishedDate?: string;
     // futuro: ownerId, createdAt, updatedAt etc.
 }

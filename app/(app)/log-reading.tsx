@@ -1,7 +1,7 @@
 // app/(app)/log-reading.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Platform,
     ScrollView,
@@ -19,32 +19,42 @@ import { useBooksStore } from '../../stores/booksStore';
 export default function LogReadingScreen() {
     const { theme } = useTheme();
     const router = useRouter();
+    const { bookId } = useLocalSearchParams<{ bookId?: string }>();
+
     const books = useBooksStore((s) => s.books);
     const updateProgress = useBooksStore((s) => s.updateProgress);
     const setStatus = useBooksStore((s) => s.updateStatus);
 
-    const readingBooks = useMemo(
-        () => books.filter((b) => b.status === 'reading'),
-        [books]
-    );
-
+    // Se recebeu bookId, mostra apenas esse livro, senão mostra os livros em leitura ou todos
     const candidates = useMemo(() => {
+        if (bookId) {
+            const book = books.find(b => b.id === bookId);
+            return book ? [book] : [];
+        }
+
+        const readingBooks = books.filter((b) => b.status === 'reading');
         if (readingBooks.length > 0) return readingBooks;
         return books;
-    }, [readingBooks, books]);
+    }, [bookId, books]);
 
     const [selectedId, setSelectedId] = useState<string | null>(
         candidates[0]?.id ?? null
     );
+
     const selectedBook = useMemo(
         () => books.find((b) => b.id === selectedId),
         [books, selectedId]
     );
 
-    const [pageInput, setPageInput] = useState(
-        selectedBook?.currentPage?.toString() ?? ''
-    );
+    const [pageInput, setPageInput] = useState('');
     const [saving, setSaving] = useState(false);
+
+    // Atualiza o campo de página quando o livro selecionado muda
+    useEffect(() => {
+        if (selectedBook) {
+            setPageInput(selectedBook.currentPage?.toString() ?? '');
+        }
+    }, [selectedBook]);
 
     function handleClose() {
         router.back();
@@ -125,7 +135,7 @@ export default function LogReadingScreen() {
                             color: theme.colors.muted,
                         }}
                     >
-                        Atualize seu progresso em um dos seus livros.
+                        Atualize seu progresso de leitura
                     </Text>
                 </View>
             </View>
@@ -139,7 +149,7 @@ export default function LogReadingScreen() {
                 keyboardShouldPersistTaps="handled"
             >
                 {/* Se não tiver nenhum livro no store */}
-                {books.length === 0 ? (
+                {candidates.length === 0 ? (
                     <View
                         style={{
                             marginTop: 40,
@@ -155,7 +165,7 @@ export default function LogReadingScreen() {
                                 marginBottom: 6,
                             }}
                         >
-                            Nenhum livro na sua biblioteca
+                            {bookId ? 'Livro não encontrado' : 'Nenhum livro na sua biblioteca'}
                         </Text>
                         <Text
                             style={{
@@ -164,116 +174,172 @@ export default function LogReadingScreen() {
                                 textAlign: 'center',
                             }}
                         >
-                            Adicione livros à sua biblioteca primeiro para poder registrar a
-                            leitura.
+                            {bookId
+                                ? 'O livro solicitado não está na sua biblioteca.'
+                                : 'Adicione livros à sua biblioteca primeiro para poder registrar a leitura.'
+                            }
                         </Text>
                     </View>
                 ) : (
                     <>
-                        {/* Seletor de livro */}
-                        <View style={{ marginBottom: 20 }}>
-                            <Text
-                                style={{
-                                    fontSize: 13,
-                                    fontWeight: '600',
-                                    color: theme.colors.text,
-                                    marginBottom: 6,
-                                }}
-                            >
-                                Escolha o livro
-                            </Text>
+                        {/* Seletor de livro - só mostra se tiver mais de 1 opção */}
+                        {candidates.length > 1 ? (
+                            <View style={{ marginBottom: 20 }}>
+                                <Text
+                                    style={{
+                                        fontSize: 13,
+                                        fontWeight: '600',
+                                        color: theme.colors.text,
+                                        marginBottom: 6,
+                                    }}
+                                >
+                                    Escolha o livro
+                                </Text>
 
+                                <View
+                                    style={{
+                                        borderRadius: 16,
+                                        backgroundColor: theme.colors.card,
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.border,
+                                    }}
+                                >
+                                    {candidates.map((book, index) => {
+                                        const isSelected = book.id === selectedId;
+                                        return (
+                                            <TouchableOpacity
+                                                key={book.id}
+                                                activeOpacity={0.85}
+                                                onPress={() => handleSelectBook(book.id)}
+                                                style={{
+                                                    flexDirection: 'row',
+                                                    alignItems: 'center',
+                                                    paddingHorizontal: 12,
+                                                    paddingVertical: 10,
+                                                    backgroundColor: isSelected
+                                                        ? theme.colors.primary
+                                                        : 'transparent',
+                                                    borderTopWidth: index === 0 ? 0 : 1,
+                                                    borderTopColor: theme.colors.border,
+                                                }}
+                                            >
+                                                <View
+                                                    style={{
+                                                        width: 32,
+                                                        height: 32,
+                                                        borderRadius: 999,
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        marginRight: 10,
+                                                        backgroundColor: theme.colors.background,
+                                                    }}
+                                                >
+                                                    <Ionicons
+                                                        name={
+                                                            isSelected
+                                                                ? 'book'
+                                                                : 'book-outline'
+                                                        }
+                                                        size={18}
+                                                        color={
+                                                            isSelected
+                                                                ? theme.colors.primary
+                                                                : theme.colors.muted
+                                                        }
+                                                    />
+                                                </View>
+
+                                                <View style={{ flex: 1 }}>
+                                                    <Text
+                                                        style={{
+                                                            fontSize: 14,
+                                                            fontWeight: '600',
+                                                            color: theme.colors.text,
+                                                        }}
+                                                        numberOfLines={1}
+                                                    >
+                                                        {book.title}
+                                                    </Text>
+                                                    <Text
+                                                        style={{
+                                                            fontSize: 12,
+                                                            color: theme.colors.muted,
+                                                        }}
+                                                        numberOfLines={1}
+                                                    >
+                                                        {book.author}
+                                                    </Text>
+                                                </View>
+
+                                                {book.pages > 0 && (
+                                                    <Text
+                                                        style={{
+                                                            fontSize: 11,
+                                                            color: theme.colors.muted,
+                                                            marginLeft: 6,
+                                                        }}
+                                                    >
+                                                        {book.currentPage}/{book.pages}
+                                                    </Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        ) : (
+                            // Mostra info do livro único de forma mais limpa
                             <View
                                 style={{
+                                    marginBottom: 20,
+                                    padding: 16,
                                     borderRadius: 16,
                                     backgroundColor: theme.colors.card,
                                     borderWidth: 1,
                                     borderColor: theme.colors.border,
                                 }}
                             >
-                                {candidates.map((book, index) => {
-                                    const isSelected = book.id === selectedId;
-                                    return (
-                                        <TouchableOpacity
-                                            key={book.id}
-                                            activeOpacity={0.85}
-                                            onPress={() => handleSelectBook(book.id)}
-                                            style={{
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                paddingHorizontal: 12,
-                                                paddingVertical: 10,
-                                                backgroundColor: isSelected
-                                                    ? theme.colors.primary
-                                                    : 'transparent',
-                                                borderTopWidth: index === 0 ? 0 : 1,
-                                                borderTopColor: theme.colors.border,
-                                            }}
-                                        >
-                                            <View
-                                                style={{
-                                                    width: 32,
-                                                    height: 32,
-                                                    borderRadius: 999,
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    marginRight: 10,
-                                                    backgroundColor: theme.colors.background,
-                                                }}
-                                            >
-                                                <Ionicons
-                                                    name={
-                                                        isSelected
-                                                            ? 'book'
-                                                            : 'book-outline'
-                                                    }
-                                                    size={18}
-                                                    color={
-                                                        isSelected
-                                                            ? theme.colors.primary
-                                                            : theme.colors.muted
-                                                    }
-                                                />
-                                            </View>
-
-                                            <View style={{ flex: 1 }}>
-                                                <Text
-                                                    style={{
-                                                        fontSize: 14,
-                                                        fontWeight: '600',
-                                                        color: theme.colors.text,
-                                                    }}
-                                                    numberOfLines={1}
-                                                >
-                                                    {book.title}
-                                                </Text>
-                                                <Text
-                                                    style={{
-                                                        fontSize: 12,
-                                                        color: theme.colors.muted,
-                                                    }}
-                                                    numberOfLines={1}
-                                                >
-                                                    {book.author}
-                                                </Text>
-                                            </View>
-
-                                            {book.pages > 0 && (
-                                                <Text
-                                                    style={{
-                                                        fontSize: 11,
-                                                        color: theme.colors.muted,
-                                                        marginLeft: 6,
-                                                    }}
-                                                >
-                                                    {book.currentPage}/{book.pages}
-                                                </Text>
-                                            )}
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                                <Text
+                                    style={{
+                                        fontSize: 13,
+                                        fontWeight: '600',
+                                        color: theme.colors.muted,
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    Livro selecionado
+                                </Text>
+                                <Text
+                                    style={{
+                                        fontSize: 16,
+                                        fontWeight: '700',
+                                        color: theme.colors.text,
+                                        marginBottom: 4,
+                                    }}
+                                >
+                                    {selectedBook?.title}
+                                </Text>
+                                <Text
+                                    style={{
+                                        fontSize: 14,
+                                        color: theme.colors.muted,
+                                    }}
+                                >
+                                    {selectedBook?.author}
+                                </Text>
+                                {selectedBook && selectedBook.pages > 0 && (
+                                    <Text
+                                        style={{
+                                            fontSize: 12,
+                                            color: theme.colors.muted,
+                                            marginTop: 8,
+                                        }}
+                                    >
+                                        Progresso atual: {selectedBook.currentPage}/{selectedBook.pages} páginas
+                                    </Text>
+                                )}
                             </View>
-                        </View>
+                        )}
 
                         {/* Página atual */}
                         {selectedBook && (

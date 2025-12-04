@@ -6,78 +6,46 @@ import {
     ActivityIndicator,
     ScrollView,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BookCoverPreview } from '../../components/ui/BookCoverPreview';
-import { useTheme } from '../../hooks/useTheme';
 
+import { useTheme } from '../../hooks/useTheme';
 import { fetchAllBooks } from '../../services/booksService';
 import type { Book } from '../../types/book';
-
-const CATEGORIES = [
-    'Ficção',
-    'Não-ficção',
-    'Negócios',
-    'Tecnologia',
-    'Biografias',
-    'Autoajuda',
-];
-
-const CURATED = [
-    { id: 'c1', title: 'Essenciais de programação', query: 'programação' },
-    { id: 'c2', title: 'Clássicos da literatura', query: 'clássicos' },
-    { id: 'c3', title: 'Alta performance & hábitos', query: 'hábitos' },
-];
 
 export default function DiscoveryScreen() {
     const { theme } = useTheme();
     const router = useRouter();
 
-    const [search, setSearch] = useState('');
     const [trending, setTrending] = useState<Book[]>([]);
-    const [loadingTrending, setLoadingTrending] = useState(true);
+    const [loading, setLoading] = useState(false);
 
-    // Carrega livros "em alta" via service (hoje: top N dos mocks)
     useEffect(() => {
         let isMounted = true;
 
-        (async () => {
+        async function load() {
             try {
+                setLoading(true);
+                // Carrega livros "em alta" via service (hoje: top N do resultado padrão da API)
                 const all = await fetchAllBooks();
                 if (!isMounted) return;
 
-                // Estratégia mock: primeiros 3 livros como "em alta"
-                setTrending(all.slice(0, 3));
+                setTrending(all.slice(0, 10));
+            } catch (error) {
+                console.log('Erro ao carregar livros de descoberta:', error);
             } finally {
-                if (isMounted) setLoadingTrending(false);
+                if (isMounted) setLoading(false);
             }
-        })();
+        }
+
+        load();
 
         return () => {
             isMounted = false;
         };
     }, []);
-
-    function handleSearch(term?: string) {
-        const q = (term ?? search).trim();
-        if (!q) return;
-
-        router.push({
-            pathname: '/(app)/search',
-            params: { q },
-        });
-    }
-
-    function handleCategoryPress(category: string) {
-        handleSearch(category);
-    }
-
-    function handleCuratedPress(query: string) {
-        handleSearch(query);
-    }
 
     return (
         <SafeAreaView
@@ -85,211 +53,188 @@ export default function DiscoveryScreen() {
         >
             <ScrollView
                 contentContainerStyle={{
-                    paddingHorizontal: 16,
-                    paddingTop: 16,
                     paddingBottom: 32,
+                    paddingHorizontal: 16,
                 }}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Título + search */}
-                <View style={{ marginBottom: 16 }}>
+                {/* Header */}
+                <View
+                    style={{
+                        paddingTop: 12,
+                        paddingBottom: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    <View>
+                        <Text
+                            style={{
+                                fontSize: 12,
+                                color: theme.colors.muted,
+                            }}
+                        >
+                            Descubra novos mundos
+                        </Text>
+                        <Text
+                            style={{
+                                fontSize: 20,
+                                fontWeight: '700',
+                                color: theme.colors.text,
+                                marginTop: 2,
+                            }}
+                        >
+                            Explorar livros
+                        </Text>
+                    </View>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/(app)/search')}
+                        style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 999,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: theme.colors.card,
+                            borderWidth: 1,
+                            borderColor: theme.colors.border,
+                        }}
+                    >
+                        <Ionicons
+                            name="search-outline"
+                            size={18}
+                            color={theme.colors.text}
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Em alta */}
+                <View style={{ marginTop: 8 }}>
                     <Text
                         style={{
-                            fontSize: 24,
-                            fontWeight: '800',
+                            fontSize: 16,
+                            fontWeight: '700',
                             color: theme.colors.text,
                             marginBottom: 8,
                         }}
                     >
-                        Descobrir
-                    </Text>
-                    <Text
-                        style={{
-                            fontSize: 14,
-                            color: theme.colors.muted,
-                            marginBottom: 12,
-                        }}
-                    >
-                        Busque por títulos, autores, temas ou explore nossas coleções.
+                        Em alta
                     </Text>
 
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            borderRadius: 999,
-                            paddingHorizontal: 14,
-                            paddingVertical: 8,
-                            backgroundColor: theme.colors.card,
-                            borderColor: theme.colors.border,
-                            borderWidth: 1,
-                        }}
-                    >
-                        <TouchableOpacity onPress={() => handleSearch()}>
-                            <Ionicons
-                                name="search-outline"
-                                size={18}
-                                color={theme.colors.muted}
-                                style={{ marginRight: 8 }}
-                            />
-                        </TouchableOpacity>
-
-                        <TextInput
-                            value={search}
-                            onChangeText={setSearch}
-                            placeholder="Buscar livros..."
-                            placeholderTextColor={theme.colors.muted}
+                    {loading && trending.length === 0 ? (
+                        <View
                             style={{
-                                flex: 1,
-                                fontSize: 14,
-                                color: theme.colors.text,
-                            }}
-                            returnKeyType="search"
-                            onSubmitEditing={() => handleSearch()}
-                        />
-                    </View>
-                </View>
-
-                {/* Curated lists */}
-                <View style={{ marginBottom: 20 }}>
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                            marginBottom: 10,
-                        }}
-                    >
-                        <Text
-                            style={{
-                                fontSize: 16,
-                                fontWeight: '700',
-                                color: theme.colors.text,
+                                padding: 16,
+                                borderRadius: 16,
+                                backgroundColor: theme.colors.card,
+                                borderWidth: 1,
+                                borderColor: theme.colors.border,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 12,
                             }}
                         >
-                            Seleções do Lumina
-                        </Text>
-                    </View>
-
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
-                            {CURATED.map((list) => (
+                            <ActivityIndicator
+                                size="small"
+                                color={theme.colors.primary}
+                            />
+                            <Text
+                                style={{
+                                    fontSize: 13,
+                                    color: theme.colors.muted,
+                                }}
+                            >
+                                Buscando livros para você descobrir...
+                            </Text>
+                        </View>
+                    ) : trending.length === 0 ? (
+                        <View
+                            style={{
+                                padding: 12,
+                                borderRadius: 16,
+                                backgroundColor: theme.colors.card,
+                                borderWidth: 1,
+                                borderColor: theme.colors.border,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 13,
+                                    color: theme.colors.muted,
+                                }}
+                            >
+                                Ainda não encontramos livros para mostrar aqui.
+                                Tente buscar por algum título na lupa.
+                            </Text>
+                        </View>
+                    ) : (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{
+                                paddingVertical: 4,
+                                paddingRight: 8,
+                                gap: 12,
+                            }}
+                        >
+                            {trending.map((book) => (
                                 <TouchableOpacity
-                                    key={list.id}
-                                    activeOpacity={0.85}
-                                    onPress={() => handleCuratedPress(list.query)}
+                                    key={book.id}
+                                    onPress={() =>
+                                        router.push(`/book/${book.id}`)
+                                    }
+                                    activeOpacity={0.9}
                                     style={{
-                                        width: 220,
-                                        padding: 16,
-                                        borderRadius: 20,
+                                        width: 140,
+                                        borderRadius: 16,
                                         backgroundColor: theme.colors.card,
                                         borderWidth: 1,
                                         borderColor: theme.colors.border,
+                                        padding: 10,
                                     }}
                                 >
-                                    <Text
+                                    <View
                                         style={{
-                                            fontSize: 14,
-                                            fontWeight: '700',
-                                            color: theme.colors.text,
-                                            marginBottom: 6,
+                                            width: '100%',
+                                            height: 140,
+                                            borderRadius: 10,
+                                            backgroundColor:
+                                                theme.colors.background,
+                                            marginBottom: 8,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                         }}
                                     >
-                                        {list.title}
+                                        <Ionicons
+                                            name="book-outline"
+                                            size={24}
+                                            color={theme.colors.muted}
+                                        />
+                                    </View>
+                                    <Text
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: '600',
+                                            color: theme.colors.text,
+                                        }}
+                                        numberOfLines={2}
+                                    >
+                                        {book.title}
                                     </Text>
                                     <Text
                                         style={{
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             color: theme.colors.muted,
+                                            marginTop: 2,
                                         }}
+                                        numberOfLines={1}
                                     >
-                                        Toque para ver livros relacionados a este tema.
+                                        {book.author}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
-                        </View>
-                    </ScrollView>
-                </View>
-
-                {/* Categorias grid */}
-                <View style={{ marginBottom: 24 }}>
-                    <Text
-                        style={{
-                            fontSize: 16,
-                            fontWeight: '700',
-                            color: theme.colors.text,
-                            marginBottom: 10,
-                        }}
-                    >
-                        Categorias populares
-                    </Text>
-
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            flexWrap: 'wrap',
-                            gap: 10,
-                        }}
-                    >
-                        {CATEGORIES.map((cat) => (
-                            <TouchableOpacity
-                                key={cat}
-                                activeOpacity={0.85}
-                                onPress={() => handleCategoryPress(cat)}
-                                style={{
-                                    paddingVertical: 10,
-                                    paddingHorizontal: 14,
-                                    borderRadius: 999,
-                                    backgroundColor: theme.colors.card,
-                                    borderColor: theme.colors.border,
-                                    borderWidth: 1,
-                                }}
-                            >
-                                <Text
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: '500',
-                                        color: theme.colors.text,
-                                    }}
-                                >
-                                    {cat}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                {/* Trending */}
-                <View>
-                    <Text
-                        style={{
-                            fontSize: 16,
-                            fontWeight: '700',
-                            color: theme.colors.text,
-                            marginBottom: 10,
-                        }}
-                    >
-                        Em alta esta semana
-                    </Text>
-
-                    {loadingTrending ? (
-                        <ActivityIndicator size="small" color={theme.colors.primary} />
-                    ) : trending.length === 0 ? (
-                        <Text style={{ fontSize: 13, color: theme.colors.muted }}>
-                            Nenhum livro em alta no momento.
-                        </Text>
-                    ) : (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                {trending.map((book) => (
-                                    <BookCoverPreview
-                                        key={book.id}
-                                        title={book.title}
-                                        author={book.author}
-                                        compact
-                                        onPress={() => router.push(`/book/${book.id}`)}
-                                    />
-                                ))}
-                            </View>
                         </ScrollView>
                     )}
                 </View>

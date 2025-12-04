@@ -10,52 +10,26 @@ export interface ReviewsState {
     setReviews: (reviews: Review[]) => void;
     addReview: (review: Review) => void;
 
-    addComment: (input: {
-        reviewId: string;
-        bookId: string;
-        userName: string;
-        text: string;
-        parentCommentId?: string | null;
-    }) => void;
+    setComments: (comments: Comment[]) => void;
 }
 
 export const useReviewsStore = create<ReviewsState>((set, get) => ({
     reviews: [],
     comments: [],
 
-    setReviews: (reviews) => set({ reviews }),
+    setReviews: (reviews) =>
+        set((state) => {
+            // mescla por id para não perder o que já está em memória
+            const map = new Map<string, Review>();
+            state.reviews.forEach((r) => map.set(r.id, r));
+            reviews.forEach((r) => map.set(r.id, r));
+            return { reviews: Array.from(map.values()) };
+        }),
 
     addReview: (review) =>
         set((state) => ({
             reviews: [review, ...state.reviews],
         })),
 
-    addComment: ({ reviewId, bookId, userName, text, parentCommentId }) =>
-        set((state) => {
-            const newComment: Comment = {
-                id: `cmt-${Date.now()}-${state.comments.length + 1}`,
-                reviewId,
-                bookId,
-                userId: 'mock-user',
-                userName,
-                userAvatar: null,
-                text,
-                parentCommentId: parentCommentId ?? null,
-                createdAt: Date.now(),
-            };
-
-            const updatedReviews = state.reviews.map((r) =>
-                r.id === reviewId
-                    ? {
-                        ...r,
-                        commentsCount: (r.commentsCount ?? 0) + 1,
-                    }
-                    : r
-            );
-
-            return {
-                comments: [newComment, ...state.comments],
-                reviews: updatedReviews,
-            };
-        }),
+    setComments: (comments) => set({ comments }),
 }));
